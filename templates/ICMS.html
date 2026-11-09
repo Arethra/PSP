@@ -1,0 +1,5912 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head><script>const PSP_USER={{user|tojson}}; const PSP_STATE={{state|tojson}}; let PSP_VERSION={{version|tojson}}; const PSP_CSRF={{csrf|tojson}}; function persistICMS(){const x=new XMLHttpRequest();x.open('PUT','/api/icms',false);x.setRequestHeader('Content-Type','application/json');x.setRequestHeader('X-CSRF-Token',PSP_CSRF);x.send(JSON.stringify({batches:importBatches,history,version:PSP_VERSION,hr_upload_only:PSP_USER.group==='HR'}));if(x.status!==200){alert('Save failed. Reload to retrieve current records.');location.reload();throw new Error('Save failed');}PSP_VERSION=JSON.parse(x.responseText).version;}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>ID Card Management | Physical Security</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --green: #00843d;
+      --green-dark: #006b31;
+      --green-light: #eaf7ef;
+
+      --black: #171717;
+      --text: #292929;
+      --muted: #6f7471;
+
+      --white: #ffffff;
+      --background: #f5f7f6;
+      --border: #e1e5e2;
+
+      --warning: #c98200;
+      --warning-bg: #fff5dc;
+
+      --danger: #c62828;
+      --danger-bg: #fdeaea;
+
+      --blue: #2367a8;
+      --blue-bg: #edf5ff;
+
+      --sidebar-width: 250px;
+      --shadow: 0 3px 12px rgba(0,0,0,.05);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--background);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    select {
+      font-family: inherit;
+      font-size: 15px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* =========================
+       APP / SIDEBAR
+    ========================= */
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+    }
+
+    .sidebar {
+      width: var(--sidebar-width);
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      background: white;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+
+    .brand {
+      padding: 25px 24px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand img {
+      width: 120px;
+      display: block;
+      margin-bottom: 16px;
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--black);
+    }
+
+    .brand-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .nav {
+      padding: 19px 12px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .nav-section-title {
+      padding: 0 13px 9px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 700;
+      color: #969b98;
+    }
+
+    .nav-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: #454945;
+      border-radius: 8px;
+      padding: 12px 13px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .nav-item:hover {
+      background: #f2f5f3;
+    }
+
+    .nav-item.active {
+      background: var(--green-light);
+      color: var(--green-dark);
+      font-weight: 700;
+    }
+
+    .nav-icon {
+      width: 21px;
+      text-align: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .nav-label {
+      flex: 1;
+    }
+
+    .nav-badge {
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--green);
+      color: white;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .sidebar-bottom {
+      padding: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .logout:hover {
+      color: var(--danger);
+      background: #faf1f1;
+    }
+
+    /* =========================
+       MAIN
+    ========================= */
+
+    .main {
+      margin-left: var(--sidebar-width);
+      width: calc(100% - var(--sidebar-width));
+      min-height: 100vh;
+    }
+
+    .topbar {
+      height: 76px;
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .page-heading h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      color: var(--black);
+    }
+
+    .page-heading p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .user-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-info {
+      text-align: right;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .user-role {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .user-avatar {
+      width: 39px;
+      height: 39px;
+      border-radius: 50%;
+      background: var(--green-light);
+      color: var(--green-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    .content {
+      padding: 30px 32px 50px;
+      max-width: 1600px;
+    }
+
+    /* =========================
+       GENERAL
+    ========================= */
+
+    .section-title {
+      margin: 0 0 5px;
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--black);
+    }
+
+    .section-description {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      padding: 19px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .card-header h2,
+    .card-header h3 {
+      margin: 0;
+      font-size: 17px;
+      color: var(--black);
+    }
+
+    .card-body {
+      padding: 22px;
+    }
+
+    .empty-state {
+      padding: 45px 25px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty-icon {
+      font-size: 30px;
+      margin-bottom: 9px;
+      color: #a5aaa7;
+    }
+
+    .empty-state strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 5px;
+      font-size: 16px;
+    }
+
+    .empty-state p {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    /* =========================
+       BUTTONS
+    ========================= */
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 7px;
+      min-height: 38px;
+      padding: 9px 15px;
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      background: var(--green);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--green-dark);
+    }
+
+    .btn-secondary {
+      background: white;
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: #f4f6f5;
+    }
+
+    .btn-danger {
+      background: white;
+      border-color: #efcccc;
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger-bg);
+    }
+
+    .btn-small {
+      min-height: 34px;
+      padding: 7px 11px;
+      font-size: 13px;
+    }
+
+    /* =========================
+       DASHBOARD
+    ========================= */
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
+      margin-bottom: 25px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 19px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 7px;
+    }
+
+    .stat-number {
+      font-size: 27px;
+      font-weight: 700;
+      color: var(--black);
+    }
+
+    .stat-card.green .stat-number {
+      color: var(--green);
+    }
+
+    .stat-card.warning .stat-number {
+      color: var(--warning);
+    }
+
+    .stat-card.danger .stat-number {
+      color: var(--danger);
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    /* =========================
+       STATUS
+    ========================= */
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .status-awaiting {
+      background: #f0f2f1;
+      color: #59605b;
+    }
+
+    .status-captured {
+      background: var(--blue-bg);
+      color: var(--blue);
+    }
+
+    .status-pending {
+      background: var(--warning-bg);
+      color: #9a6500;
+    }
+
+    .status-collected {
+      background: var(--green-light);
+      color: var(--green-dark);
+    }
+
+    .status-expired {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    /* =========================
+       TABLE
+    ========================= */
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    th {
+      text-align: left;
+      padding: 13px 16px;
+      background: #f8f9f8;
+      border-bottom: 1px solid var(--border);
+      color: #666b67;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 15px 16px;
+      border-bottom: 1px solid #edf0ee;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    tbody tr:hover {
+      background: #fbfcfb;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .person-name {
+      font-weight: 700;
+      color: var(--black);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    /* =========================
+       SEARCH / TOOLBAR
+    ========================= */
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-left,
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .search-box input {
+      width: 300px;
+      height: 40px;
+      padding: 0 13px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      outline: none;
+      background: white;
+    }
+
+    .search-box input:focus,
+    .filter-select:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 2px rgba(0,132,61,.08);
+    }
+
+    .filter-select {
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      outline: none;
+      background: white;
+    }
+
+    /* =========================
+       ACTION MENU
+    ========================= */
+
+    .actions-cell {
+      width: 70px;
+      position: relative;
+      text-align: right;
+    }
+
+    .action-trigger {
+      width: 35px;
+      height: 35px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: white;
+      color: #555;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .action-trigger:hover {
+      background: #f1f3f1;
+    }
+
+    .action-menu {
+      position: absolute;
+      right: 10px;
+      top: 48px;
+      width: 235px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 25px rgba(0,0,0,.13);
+      z-index: 1000;
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .action-menu button {
+      width: 100%;
+      display: block;
+      border: 0;
+      background: white;
+      padding: 12px 14px;
+      text-align: left;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .action-menu button:hover {
+      background: #f3f7f4;
+    }
+
+    .action-menu .action-main {
+      color: var(--green-dark);
+      font-weight: 700;
+    }
+
+    /* =========================
+       IMPORT
+    ========================= */
+
+    .import-box {
+      border: 2px dashed #cbd3ce;
+      border-radius: 9px;
+      padding: 28px;
+      text-align: center;
+      background: #fbfcfb;
+      margin-bottom: 25px;
+    }
+
+    .import-box h3 {
+      margin: 0 0 5px;
+      font-size: 17px;
+    }
+
+    .import-box p {
+      margin: 0 auto 17px;
+      max-width: 620px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .file-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 17px;
+      background: var(--green);
+      color: white;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .file-label:hover {
+      background: var(--green-dark);
+    }
+
+    .import-note {
+      margin-top: 13px;
+      color: #858b87;
+      font-size: 12px;
+    }
+
+    /* =========================
+       BATCH
+    ========================= */
+
+    .batch-card {
+      margin-bottom: 20px;
+    }
+
+    .batch-header-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .batch-file {
+      font-weight: 700;
+      color: var(--black);
+    }
+
+    .batch-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .batch-actions {
+      display: flex;
+      gap: 9px;
+    }
+
+    /* =========================
+       QUICK LIST
+    ========================= */
+
+    .quick-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .quick-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      padding: 13px 0;
+      border-bottom: 1px solid #edf0ee;
+    }
+
+    .quick-list li:last-child {
+      border-bottom: 0;
+    }
+
+    .quick-person {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .quick-detail {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* =========================
+       ACTIVITY
+    ========================= */
+
+    .activity-item {
+      display: flex;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid #edf0ee;
+    }
+
+    .activity-item:last-child {
+      border-bottom: 0;
+    }
+
+    .activity-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+
+    .activity-text {
+      font-size: 14px;
+    }
+
+    .activity-time {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    /* =========================
+       QUEUES
+    ========================= */
+
+    .queue-info {
+      background: var(--green-light);
+      border: 1px solid #d3eadb;
+      padding: 14px 17px;
+      border-radius: 8px;
+      margin-bottom: 18px;
+      color: #315c41;
+      font-size: 14px;
+    }
+
+    .id-card-section {
+      margin-bottom: 24px;
+    }
+
+    /* =========================
+       ALERT BOXES
+    ========================= */
+
+    .alert-section {
+      margin-bottom: 24px;
+    }
+
+    .alert-header {
+      padding: 17px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .alert-header h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .alert-header p {
+      margin: 3px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .alert-expired .alert-header {
+      background: #fff8f8;
+    }
+
+    .alert-expiring .alert-header {
+      background: #fffbf1;
+    }
+
+    .alert-count {
+      min-width: 30px;
+      height: 30px;
+      padding: 0 9px;
+      border-radius: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .alert-expired .alert-count {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .alert-expiring .alert-count {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    /* =========================
+       NOTIFICATIONS
+    ========================= */
+
+    .notification {
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: white;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .notification-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--warning-bg);
+      color: var(--warning);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .notification.expired .notification-icon {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .notification-title {
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .notification-text {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* =========================
+       HISTORY
+    ========================= */
+
+    .history-item {
+      padding: 17px 0;
+      border-bottom: 1px solid #edf0ee;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .history-item:last-child {
+      border-bottom: 0;
+    }
+
+    .history-action {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .history-details {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .history-time {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    /* =========================
+       SETTINGS
+    ========================= */
+
+    .settings-row {
+      padding: 18px 0;
+      border-bottom: 1px solid #edf0ee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .settings-row:last-child {
+      border-bottom: 0;
+    }
+
+    .settings-title {
+      font-weight: 700;
+    }
+
+    .settings-description {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .system-value {
+      color: var(--green-dark);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* =========================
+       MODAL
+    ========================= */
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 3000;
+    }
+
+    .modal {
+      width: min(600px,100%);
+      max-height: 90vh;
+      overflow-y: auto;
+      background: white;
+      border-radius: 11px;
+      box-shadow: 0 15px 45px rgba(0,0,0,.2);
+    }
+
+    .modal-header {
+      padding: 19px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .modal-close {
+      border: 0;
+      background: transparent;
+      font-size: 25px;
+      color: #777;
+    }
+
+    .modal-body {
+      padding: 22px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .detail-item {
+      background: #f8f9f8;
+      border-radius: 7px;
+      padding: 13px;
+    }
+
+    .detail-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+
+    .detail-value {
+      color: var(--black);
+      font-weight: 600;
+    }
+
+    .modal-footer {
+      padding: 15px 22px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* =========================
+       TOAST
+    ========================= */
+
+    .toast-container {
+      position: fixed;
+      right: 25px;
+      bottom: 25px;
+      z-index: 5000;
+    }
+
+    .toast {
+      background: #202420;
+      color: white;
+      padding: 13px 17px;
+      border-radius: 7px;
+      margin-top: 8px;
+      box-shadow: 0 7px 22px rgba(0,0,0,.2);
+      font-size: 14px;
+    }
+
+    .toast.success {
+      background: var(--green-dark);
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    /* =========================
+       RESPONSIVE
+    ========================= */
+
+    @media (max-width:1250px) {
+      .stats-grid {
+        grid-template-columns: repeat(3,1fr);
+      }
+
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width:900px) {
+      :root {
+        --sidebar-width:210px;
+      }
+
+      .content {
+        padding: 25px 20px 40px;
+      }
+
+      .topbar {
+        padding: 0 20px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2,1fr);
+      }
+    }
+
+    @media (max-width:680px) {
+      .sidebar {
+        width: 70px;
+      }
+
+      .main {
+        margin-left: 70px;
+        width: calc(100% - 70px);
+      }
+
+      .brand {
+        padding: 20px 10px;
+      }
+
+      .brand img {
+        width: 47px;
+      }
+
+      .brand-title,
+      .brand-subtitle,
+      .nav-label,
+      .nav-section-title,
+      .nav-badge {
+        display: none;
+      }
+
+      .nav-item {
+        justify-content: center;
+        padding: 13px 8px;
+      }
+
+      .topbar {
+        min-height: 72px;
+        height: auto;
+        padding: 14px;
+      }
+
+      .page-heading h1 {
+        font-size: 18px;
+      }
+
+      .user-info {
+        display: none;
+      }
+
+      .content {
+        padding: 20px 14px 35px;
+      }
+
+      .search-box input {
+        width: 100%;
+      }
+
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  .psp-return-button{display:block;margin:0 0 18px;padding:12px 14px;border-radius:8px;background:#0a6634;color:#fff;text-decoration:none;font-size:14px;font-weight:600}.psp-return-button:hover{background:#054b26}.psp-return-button:focus-visible{outline:3px solid #d2a64b;outline-offset:3px}.brand img{width:160px;max-width:100%;height:auto;object-fit:contain}
+/* Reports: scoped to preserve the existing application screens. */
+#page-reports{min-width:0;max-width:1440px;margin:0 auto}
+#page-reports .reports-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:24px}
+#page-reports .reports-eyebrow{display:block;font-size:11px;letter-spacing:1.6px;font-weight:700;color:var(--green);margin-bottom:9px}
+#page-reports .section-title{margin:0 0 8px;font-size:27px;line-height:1.25}
+#page-reports .section-description{margin:0;line-height:1.6}
+#page-reports .card{margin:0 0 24px;overflow:hidden;min-width:0}
+#page-reports .card-header{padding:20px 24px;flex-wrap:wrap;background:#fff}
+#page-reports .card-header h3{font-size:17px;line-height:1.4}
+#page-reports .card-header p{font-size:13px;color:var(--muted);line-height:1.5;margin:5px 0 0}
+#page-reports .card-body{padding:24px}
+#page-reports .reports-filter-grid{display:grid;grid-template-columns:minmax(180px,1.2fr) repeat(2,minmax(150px,1fr));gap:20px}
+#page-reports .reports-field{display:flex;flex-direction:column;gap:9px;min-width:0}
+#page-reports .reports-field label{font-size:13px;font-weight:600;color:var(--text)}
+#page-reports .reports-field input,#page-reports .reports-field select{width:100%;min-width:0;min-height:46px;padding:11px 12px;border:1px solid #cdd8d1;border-radius:8px;background:#fff;color:var(--text);font:inherit;font-size:14px;box-sizing:border-box;color-scheme:light}
+#page-reports .reports-field input:focus-visible,#page-reports .reports-field select:focus-visible,#page-reports button:focus-visible,#page-reports .reports-table-scroll:focus-visible{outline:3px solid #b9ddc7;outline-offset:2px;border-color:var(--green)}
+#page-reports .reports-filter-footer{display:flex;justify-content:space-between;align-items:center;gap:20px;border-top:1px solid var(--border);padding-top:20px;margin-top:24px;flex-wrap:wrap}
+#page-reports .reports-filter-footer p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+#page-reports .reports-actions{display:flex;gap:10px;flex-wrap:wrap}
+#page-reports .reports-actions .btn{min-height:44px;padding:11px 18px;cursor:pointer}
+#page-reports .reports-label{display:inline-block;flex-shrink:0;font-size:12px;font-weight:600;color:var(--green-dark);background:var(--green-light,#edf6f0);border:1px solid #dce9e1;border-radius:20px;padding:7px 12px;line-height:1.4}
+#page-reports .reports-placeholder{padding:38px 20px;text-align:center;color:var(--muted);background:#f8faf9;border:1px dashed #dce5df;border-radius:10px;margin:0;font-size:14px;line-height:1.6}
+#page-reports .reports-placeholder strong{display:block;color:var(--text);font-size:15px;font-weight:600}
+#page-reports .reports-placeholder p{margin:6px 0 0;font-size:13px}
+#page-reports .reports-placeholder-icon{display:block;font-size:30px;line-height:1.3;color:var(--green);margin-bottom:10px}
+#page-reports #icmsReportCharts>div:not(.reports-placeholder){display:grid!important;grid-template-columns:230px minmax(0,1fr);align-items:center;gap:28px!important}
+#page-reports #icmsReportCharts svg{height:auto;display:block;max-width:100%}
+#page-reports #icmsReportCharts>p{margin:24px 0 0;padding:16px 18px;border-radius:8px;background:#f2f7f4;font-size:13px;line-height:1.9;color:var(--text)}
+#page-reports .reports-table-scroll{width:100%;max-height:560px;overflow:auto;overscroll-behavior:contain}
+#page-reports .reports-table-scroll>.reports-placeholder{margin:24px}
+#page-reports .reports-table-scroll table{width:100%;min-width:1280px;border-collapse:collapse;font-size:13px}
+#page-reports .reports-table-scroll th{position:sticky;top:0;z-index:1;background:#f0f5f2;color:#375545;white-space:nowrap;font-size:11px;letter-spacing:.5px;text-transform:uppercase}
+#page-reports .reports-table-scroll th,#page-reports .reports-table-scroll td{padding:15px 18px;line-height:1.5;border-bottom:1px solid var(--border);vertical-align:top}
+#page-reports .reports-table-scroll tbody tr:nth-child(even){background:#fafcfb}
+#page-reports .reports-table-scroll tbody tr:hover{background:#f1f7f3}
+@media(max-width:1100px){ #page-reports .reports-filter-grid{grid-template-columns:1fr 1fr}#page-reports .reports-field:first-child{grid-column:1/-1}#page-reports #icmsReportCharts>div:not(.reports-placeholder){grid-template-columns:1fr;justify-items:center}}
+@media(max-width:600px){ #page-reports .reports-heading{align-items:flex-start}#page-reports .reports-heading>.reports-label{display:none}#page-reports .section-title{font-size:24px}#page-reports .reports-filter-grid{grid-template-columns:1fr;gap:16px}#page-reports .card-body,#page-reports .card-header{padding:18px}#page-reports .reports-actions{width:100%}#page-reports .reports-actions .btn{flex:1}#page-reports .reports-filter-footer{margin-top:20px;gap:14px}#page-reports .reports-table-scroll>.reports-placeholder{margin:18px}}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+
+  <aside class="sidebar">
+
+    <div class="brand">
+      <img
+        src="{{url_for('static', filename='gbb-logo.jpg')}}"
+        alt="GBB Logo"
+      >
+
+      <div class="brand-title">
+        ID Card Management System
+      </div>
+
+      <div class="brand-subtitle">
+        Physical Security Portal
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="psp-return-button" href="/dashboard">← Back to PSP Dashboard</a>
+
+      <div class="nav-section-title">
+        Main
+      </div>
+
+      <button class="nav-item active" data-page="dashboard">
+        
+        <span class="nav-label">Dashboard</span>
+      </button>
+
+      <button class="nav-item" data-page="personnel">
+        <span class="nav-label">Personnel</span>
+      </button>
+
+      <button class="nav-item" data-page="submissions">
+        <span class="nav-label">HR Uploads</span>
+
+      </button>
+
+      <button class="nav-item" data-page="capture">
+        <span class="nav-label">ID Capture</span>
+        <span class="nav-badge hidden" id="captureBadge">0</span>
+      </button>
+
+      <button class="nav-item" data-page="idcards">
+        <span class="nav-label">Card Issuance</span>
+        <span class="nav-badge hidden" id="pendingBadge">0</span>
+      </button>
+
+      <button class="nav-item" data-page="cardreturn"><span class="nav-label">Pending Card Return</span></button>
+      <button class="nav-item" data-page="submittedids">
+        <span class="nav-label">Card Returns</span>
+        <span class="nav-badge hidden" id="submittedBadge">0</span>
+      </button>
+
+      <button class="nav-item" data-page="reports"><span class="nav-label">Generate reports</span></button>
+      <button class="nav-item" data-page="history">
+        <span class="nav-label">History</span>
+      </button>
+
+      <button class="nav-item" data-page="notifications">
+        <span class="nav-label">Notifications</span>
+        <span class="nav-badge hidden" id="notificationBadge">0</span>
+      </button>
+
+      <div
+        class="nav-section-title"
+        style="margin-top:22px;"
+      >
+        System
+      </div>
+
+      <button class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙</span>
+        <span class="nav-label">Settings</span>
+      </button>
+
+    </nav>
+
+    <div class="sidebar-bottom">
+
+      <button class="nav-item logout" id="logoutBtn">
+        <span class="nav-icon">🚪</span>
+        <span class="nav-label">Log Out</span>
+      </button>
+
+    </div>
+
+  </aside>
+
+
+  <!-- MAIN -->
+
+  <main class="main">
+
+    <header class="topbar">
+
+      <div class="page-heading">
+        <h1 id="pageTitle">
+          Dashboard
+        </h1>
+
+        <p id="pageSubtitle">
+          Physical Security ID Card Management
+        </p>
+      </div>
+
+      <div class="user-area">
+
+        <div class="user-info">
+          <div class="user-name">
+            Physical Security
+          </div>
+        </div>
+
+        <div class="user-avatar">
+          PS
+        </div>
+
+      </div>
+
+    </header>
+
+
+    <div class="content">
+
+
+      <!-- =========================
+           DASHBOARD
+      ========================== -->
+
+<section id="page-reports" class="page hidden" aria-labelledby="reports-title">
+  <div class="reports-heading"><div><span class="reports-eyebrow">ID CARD MANAGEMENT</span><h2 id="reports-title" class="section-title">Generate reports</h2><p class="section-description">Choose your filters, review the charts, then explore the full report.</p></div><span class="reports-label">ICMS reports</span></div>
+  <form class="card reports-filters" onsubmit="event.preventDefault();generateICMSReport()">
+    <div class="card-header"><div><h3>Report filters</h3><p>Leave the dates blank to include all imported records.</p></div></div>
+    <div class="card-body"><div class="reports-filter-grid">
+      <div class="reports-field"><label for="icmsReportStatus">Card status</label><select id="icmsReportStatus"><option value="">All statuses</option><option>Awaiting Capture</option><option>Pending</option><option>Issued</option><option>Expired</option><option>Submitted</option></select></div>
+      <div class="reports-field"><label for="icmsReportFrom">Imported from</label><input id="icmsReportFrom" type="date"></div>
+      <div class="reports-field"><label for="icmsReportTo">Imported to</label><input id="icmsReportTo" type="date"></div>
+    </div><div class="reports-filter-footer"><p>Dates filter when the records were imported.</p><div class="reports-actions"><button type="submit" class="btn btn-primary">Generate reports</button><button type="button" class="btn btn-secondary" onclick="exportICMSReport()">Export CSV</button></div></div></div>
+  </form>
+  <div class="card reports-charts-card"><div class="card-header"><div><h3>Report charts</h3><p>Distribution of the filtered records by card status.</p></div><span class="reports-label">Pie &amp; bar charts</span></div><div class="card-body"><div id="icmsReportCharts" aria-live="polite"><div class="reports-placeholder"><span class="reports-placeholder-icon" aria-hidden="true">▥</span><strong>Your charts will appear here</strong><p>Select your filters and click Generate reports.</p></div></div></div></div>
+  <div class="card reports-results-card"><div class="card-header"><div><h3>Full report</h3><p>Detailed ID-card records matching the same report filters.</p></div><span id="icmsReportCount" class="reports-label" aria-live="polite">Not generated yet</span></div><div id="icmsReportTable" class="reports-table-scroll" role="region" aria-label="Full ID-card report" tabindex="0"><div class="reports-placeholder"><strong>No report generated yet</strong><p>Generate a report to view the full record list.</p></div></div></div>
+</section>
+      <section id="page-dashboard" class="page">
+
+        <div class="section-title">
+          Overview
+        </div>
+
+        <p class="section-description">
+          Monitor personnel, ID card processing and expiry information.
+        </p>
+
+
+        <div class="stats-grid">
+
+          <div class="stat-card">
+            <div class="stat-label">
+              Total Personnel
+            </div>
+            <div class="stat-number" id="statTotal">
+              0
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-label">
+              Awaiting Capture
+            </div>
+            <div class="stat-number" id="statAwaiting">
+              0
+            </div>
+          </div>
+
+          <div class="stat-card green">
+            <div class="stat-label">
+              Captured
+            </div>
+            <div class="stat-number" id="statCaptured">
+              0
+            </div>
+          </div>
+
+          <div class="stat-card warning">
+            <div class="stat-label">
+              Ready for Issuance
+            </div>
+            <div class="stat-number" id="statPending">
+              0
+            </div>
+          </div>
+
+          <div class="stat-card green">
+            <div class="stat-label">
+              Issued
+            </div>
+            <div class="stat-number" id="statIssued">
+              0
+            </div>
+          </div>
+
+          <div class="stat-card danger">
+            <div class="stat-label">
+              Expired
+            </div>
+            <div class="stat-number" id="statExpired">
+              0
+            </div>
+          </div>
+
+        </div>
+
+
+        <div class="dashboard-grid">
+
+          <div class="card">
+
+            <div class="card-header">
+              <h2>
+                Quick View
+              </h2>
+            </div>
+
+            <div class="card-body">
+
+              <div
+                style="
+                  display:grid;
+                  grid-template-columns:1fr 1fr;
+                  gap:14px;
+                "
+              >
+
+                <div
+                  style="
+                    padding:17px;
+                    background:#f7faf8;
+                    border-radius:8px;
+                  "
+                >
+
+                  <div class="muted" style="font-size:13px;">
+                    Expiring This Month
+                  </div>
+
+                  <div
+                    id="quickExpiring"
+                    style="
+                      font-size:25px;
+                      font-weight:700;
+                      margin-top:4px;
+                    "
+                  >
+                    0
+                  </div>
+
+                </div>
+
+
+                <div
+                  style="
+                    padding:17px;
+                    background:#f7faf8;
+                    border-radius:8px;
+                  "
+                >
+
+                  <div class="muted" style="font-size:13px;">
+                    Imported Batches
+                  </div>
+
+                  <div
+                    id="quickBatches"
+                    style="
+                      font-size:25px;
+                      font-weight:700;
+                      margin-top:4px;
+                    "
+                  >
+                    0
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <div style="margin-top:22px;">
+
+                <div
+                  style="
+                    font-weight:700;
+                    margin-bottom:9px;
+                  "
+                >
+                  ID Card Workflow
+                </div>
+
+                <div
+                  style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    flex-wrap:wrap;
+                    font-size:13px;
+                  "
+                >
+
+                  <span class="status-badge status-awaiting">
+                    Awaiting Capture
+                  </span>
+
+                  <span>→</span>
+
+                  <span class="status-badge status-pending">
+                    Ready for Issuance
+                  </span>
+
+                  <span>→</span>
+
+                  <span class="status-badge status-collected">
+                    Issued
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div class="card">
+
+            <div class="card-header">
+              <h2>
+                Recent Activity
+              </h2>
+            </div>
+
+            <div
+              class="card-body"
+              id="dashboardActivity"
+            >
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="dashboard-grid">
+
+          <div class="card">
+
+            <div class="card-header">
+
+              <h2>
+                Expiring This Month
+              </h2>
+
+              <button
+                class="btn btn-secondary btn-small"
+                onclick="showPage('notifications')"
+              >
+                View Notifications
+              </button>
+
+            </div>
+
+            <div
+              class="card-body"
+              id="expiringList"
+            >
+            </div>
+
+          </div>
+
+
+          <div class="card">
+
+            <div class="card-header">
+
+              <h2>
+                Recent HR Uploads
+              </h2>
+
+              <button
+                class="btn btn-secondary btn-small"
+                onclick="showPage('submissions')"
+              >
+                View All
+              </button>
+
+            </div>
+
+            <div
+              class="card-body"
+              id="recentSubmissions"
+            >
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           PERSONNEL
+      ========================== -->
+
+      <section
+        id="page-personnel"
+        class="page hidden"
+      >
+
+        <div class="section-title">
+          Personnel
+        </div>
+
+        <p class="section-description">
+          Master list of all personnel imported from HR.
+        </p>
+
+
+        <div class="toolbar">
+
+          <div class="toolbar-left">
+
+            <div class="search-box">
+
+              <input
+                id="personnelSearch"
+                type="text"
+                placeholder="Search by name or Employee ID..."
+              >
+
+            </div>
+
+
+            <select
+              id="personnelStatusFilter"
+              class="filter-select"
+            >
+
+              <option value="All">
+                All Statuses
+              </option>
+
+              <option value="Awaiting Capture">
+                Awaiting Capture
+              </option>
+
+              <option value="Pending">
+                Ready for Issuance
+              </option>
+
+              <option value="Issued">
+                Issued
+              </option>
+
+              <option value="Expired">
+                Expired
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="toolbar-right">
+
+            <span
+              class="muted"
+              id="personnelCount"
+            >
+              0 personnel
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <div class="card">
+
+          <div
+            class="table-wrap"
+            id="personnelTableWrap"
+          >
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           SUBMISSIONS
+      ========================== -->
+
+      <section
+        id="page-submissions"
+        class="page hidden"
+      >
+
+        <div class="section-title">
+          HR Uploads
+        </div>
+
+        <p class="section-description">
+          Import a new HR personnel file. Each import is retained as a separate batch.
+        </p>
+
+
+        <div class="import-box">
+
+          <h3>
+            New Personnel Import
+          </h3>
+
+          <p>
+            The HR file should contain:
+            <strong>Name, End Date, Status</strong>. Status describes the holder (including permanent/full-time staff, contract staff, interns, consultants, vendors and partners); the ID card starts as Awaiting Capture. Employee ID and Email Address are optional.
+          </p>
+
+          <label
+            for="excelFile"
+            class="file-label"
+          >
+            + Choose Excel / CSV File
+          </label>
+
+          <input
+            id="excelFile"
+            class="file-input"
+            type="file"
+            accept=".xlsx,.xls,.csv"
+          >
+
+          <div class="import-note">
+            New personnel automatically start as
+            <strong>Awaiting Capture</strong>.
+          </div>
+
+        </div>
+
+
+        <div id="submissionBatches">
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           CAPTURE
+      ========================== -->
+
+      <section
+        id="page-capture"
+        class="page hidden"
+      >
+
+        <div class="section-title">
+          Capture
+        </div>
+
+        <p class="section-description">
+          Personnel who have not yet completed capture appear here.
+        </p>
+
+
+        <div class="queue-info">
+
+          <strong>
+            Capture:
+          </strong>
+
+          Find the person's name and click
+          <strong>
+            Captured
+          </strong>.
+
+          Once captured, the person is automatically moved to
+          <strong>
+            ID Cards → Ready for Issuance
+          </strong>.
+
+        </div>
+
+
+        <div class="toolbar">
+
+          <div class="search-box">
+
+            <input
+              id="captureSearch"
+              type="text"
+              placeholder="Search name or Employee ID..."
+            >
+
+          </div>
+
+        </div>
+
+
+        <div class="card">
+
+          <div
+            class="table-wrap"
+            id="captureTableWrap"
+          >
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           ID CARDS
+      ========================== -->
+
+      <section
+        id="page-idcards"
+        class="page hidden"
+      >
+
+        <div class="section-title">
+          ID Cards
+        </div>
+
+        <p class="section-description">
+          Manage cards ready for issuance, issued cards and expired cards.
+        </p>
+
+
+        <!-- PENDING COLLECTION -->
+
+        <div class="id-card-section">
+
+          <div class="card">
+
+            <div class="card-header">
+
+              <div>
+
+                <h2>
+                  Ready for Issuance
+                </h2>
+
+                <div
+                  class="muted"
+                  style="font-size:13px;margin-top:3px;"
+                >
+                  Captured personnel whose ID cards are ready for issuance.
+                </div>
+
+              </div>
+
+              <span
+                class="status-badge status-pending"
+                id="pendingSectionCount"
+              >
+                0
+              </span>
+
+            </div>
+
+
+            <div
+              class="card-body"
+              style="padding-bottom:10px;"
+            >
+
+              <div class="toolbar">
+
+                <div class="search-box">
+
+                  <input
+                    id="pendingSearch"
+                    type="text"
+                    placeholder="Search name or Employee ID..."
+                  >
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <div
+              class="table-wrap"
+              id="pendingCardsTable"
+            >
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- COLLECTED -->
+
+        <div class="id-card-section">
+
+          <div class="card">
+
+            <div class="card-header">
+
+              <div>
+
+                <h2>
+                  Issued ID Cards
+                </h2>
+
+                <div
+                  class="muted"
+                  style="font-size:13px;margin-top:3px;"
+                >
+                  Personnel who have been issued their ID cards.
+                </div>
+
+              </div>
+
+              <span
+                class="status-badge status-collected"
+                id="collectedSectionCount"
+              >
+                0
+              </span>
+
+            </div>
+
+
+            <div
+              class="card-body"
+              style="padding-bottom:10px;"
+            >
+
+              <div class="toolbar">
+
+                <div class="search-box">
+
+                  <input
+                    id="collectedSearch"
+                    type="text"
+                    placeholder="Search name or Employee ID..."
+                  >
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <div
+              class="table-wrap"
+              id="collectedCardsTable"
+            >
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- EXPIRING THIS MONTH -->
+
+        <div class="id-card-section">
+
+          <div class="card alert-section alert-expiring">
+
+            <div class="alert-header">
+
+              <div>
+
+                <h2>
+                  Expiring This Month
+                </h2>
+
+                <p>
+                  Personnel whose End Date falls within the current month.
+                </p>
+
+              </div>
+
+              <span
+                class="alert-count"
+                id="expiringSectionCount"
+              >
+                0
+              </span>
+
+            </div>
+
+
+            <div
+              class="table-wrap"
+              id="expiringCardsTable"
+            >
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- EXPIRED -->
+
+        <div class="id-card-section">
+
+          <div class="card alert-section alert-expired">
+
+            <div class="alert-header">
+
+              <div>
+
+                <h2>
+                  Expired ID Cards
+                </h2>
+
+                <p>
+                  Personnel whose End Date has passed.
+                </p>
+
+              </div>
+
+              <span
+                class="alert-count"
+                id="expiredSectionCount"
+              >
+                0
+              </span>
+
+            </div>
+
+
+            <div
+              class="table-wrap"
+              id="expiredCardsTable"
+            >
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+
+<section id="page-cardreturn" class="page hidden"><div class="section-title">Pending Card Return</div><p class="section-description">Full-term staff flagged by HR for resignation, retirement or another card-return requirement.</p><div class="card"><div class="table-wrap" id="cardReturnTable"></div></div></section>
+      <!-- =========================
+           SUBMITTED IDs
+      ========================== -->
+
+      <section
+        id="page-submittedids"
+        class="page hidden"
+      >
+
+        <div class="section-title">
+          Card Returns
+        </div>
+
+        <p class="section-description">
+          IDs that have been physically returned to the Physical Security Unit.
+        </p>
+
+        <div class="card">
+          <div class="card-body" style="padding-bottom:10px;">
+            <div class="toolbar">
+              <div class="search-box">
+                <input
+                  id="submittedSearch"
+                  type="text"
+                  placeholder="Search by name or Employee ID..."
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="table-wrap" id="submittedIdsTable"></div>
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           HISTORY
+      ========================== -->
+
+      <section
+        id="page-history"
+        class="page hidden"
+      >
+
+        <div class="section-title">
+          History
+        </div>
+
+        <p class="section-description">
+          Record of important actions performed in IDMS.
+        </p>
+
+
+        <div class="card">
+
+          <div class="card-header">
+
+            <h2>
+              Activity History
+            </h2>
+
+            <button
+              class="btn btn-danger btn-small"
+              id="clearHistoryBtn"
+            >
+              Clear History
+            </button>
+
+          </div>
+
+          <div
+            class="card-body"
+            id="historyList"
+          >
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           NOTIFICATIONS
+      ========================== -->
+
+      <section
+        id="page-notifications"
+        class="page hidden"
+      >
+
+        <div class="section-title">
+          Notifications
+        </div>
+
+        <p class="section-description">
+          Important expiry and ID card alerts.
+        </p>
+
+        <div id="notificationsList">
+        </div>
+
+      </section>
+
+
+      <!-- =========================
+           SETTINGS
+      ========================== -->
+
+      <section
+        id="page-settings"
+        class="page hidden"
+      >
+
+        <div class="section-title">
+          Settings
+        </div>
+
+        <p class="section-description">
+          IDMS configuration.
+        </p>
+
+
+        <div class="card">
+
+          <div class="card-header">
+            <h2>
+              Configuration
+            </h2>
+          </div>
+
+
+          <div class="card-body">
+
+            <div class="settings-row">
+
+              <div>
+                <div class="settings-title">
+                  System Name
+                </div>
+
+                <div class="settings-description">
+                  Name displayed throughout the portal.
+                </div>
+              </div>
+
+              <div class="system-value">
+                ID Card Management System
+              </div>
+
+            </div>
+
+
+            <div class="settings-row">
+
+              <div>
+                <div class="settings-title">
+                  Department
+                </div>
+
+                <div class="settings-description">
+                  Department responsible for ID cards.
+                </div>
+              </div>
+
+              <div class="system-value">
+                Physical Security
+              </div>
+
+            </div>
+
+
+            <div class="settings-row">
+
+              <div>
+                <div class="settings-title">
+                  HR Import Format
+                </div>
+
+                <div class="settings-description">
+                  Required HR columns.
+                </div>
+              </div>
+
+              <div class="system-value">
+                Name · End Date · Status · Employee ID · Department · Course of Study
+              </div>
+
+            </div>
+
+
+            <div class="settings-row">
+
+              <div>
+                <div class="settings-title">
+                  Initial Status
+                </div>
+
+                <div class="settings-description">
+                  Status of newly imported personnel.
+                </div>
+              </div>
+
+              <div>
+                <span class="status-badge status-awaiting">
+                  Awaiting Capture
+                </span>
+              </div>
+
+            </div>
+
+
+            <div class="settings-row">
+
+              <div>
+                <div class="settings-title">
+                  Expiry Handling
+                </div>
+
+                <div class="settings-description">
+                  End Date automatically determines expired records.
+                </div>
+              </div>
+
+              <div class="system-value">
+                Automatic
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+</div>
+
+
+<!-- =========================
+     DETAILS MODAL
+========================== -->
+
+<div
+  class="modal-overlay hidden"
+  id="detailModal"
+>
+
+  <div class="modal">
+
+    <div class="modal-header">
+
+      <h2>
+        Personnel Details
+      </h2>
+
+      <button
+        class="modal-close"
+        onclick="closeModal()"
+      >
+        ×
+      </button>
+
+    </div>
+
+
+    <div
+      class="modal-body"
+      id="detailModalBody"
+    >
+    </div>
+
+
+    <div class="modal-footer">
+
+      <button
+        class="btn btn-secondary"
+        onclick="closeModal()"
+      >
+        Close
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<div
+  class="toast-container"
+  id="toastContainer"
+></div>
+
+
+<script>
+
+  /* =========================================================
+     STORAGE
+  ========================================================= */
+
+  const BATCH_STORAGE_KEY = "idmsImportBatches";
+  const HISTORY_STORAGE_KEY = "idmsHistory";
+
+  let importBatches = loadBatches();
+  let history = loadHistory();
+
+
+  function loadBatches() {
+
+    try {
+
+      const data =
+        JSON.parse(
+          JSON.stringify(PSP_STATE.batches)
+        );
+
+      return Array.isArray(data)
+        ? data
+        : [];
+
+    } catch {
+
+      return [];
+
+    }
+
+  }
+
+
+  function saveBatches() {
+
+    persistICMS();
+
+  }
+
+
+  function loadHistory() {
+
+    try {
+
+      const data =
+        JSON.parse(
+          JSON.stringify(PSP_STATE.history)
+        );
+
+      return Array.isArray(data)
+        ? data
+        : [];
+
+    } catch {
+
+      return [];
+
+    }
+
+  }
+
+
+  function saveHistory() {
+
+    persistICMS();
+
+  }
+
+
+  /* =========================================================
+     HELPERS
+  ========================================================= */
+
+  function generateId(prefix) {
+
+    return (
+      prefix +
+      "-" +
+      Date.now().toString(36) +
+      "-" +
+      Math.random().toString(36).substring(2,8)
+    ).toUpperCase();
+
+  }
+
+
+  function escapeHtml(value) {
+
+    if (
+      value === null ||
+      value === undefined
+    ) {
+      return "";
+    }
+
+    return String(value)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+
+  }
+
+
+  function parseDate(value) {
+
+    if (!value) {
+      return null;
+    }
+
+    if (
+      value instanceof Date &&
+      !isNaN(value.getTime())
+    ) {
+      return value;
+    }
+
+    if (
+      typeof value === "number" &&
+      typeof XLSX !== "undefined"
+    ) {
+
+      const parsed =
+        XLSX.SSF.parse_date_code(value);
+
+      if (parsed) {
+
+        return new Date(
+          parsed.y,
+          parsed.m - 1,
+          parsed.d
+        );
+
+      }
+
+    }
+
+    const text =
+      String(value).trim();
+
+    if (!text) {
+      return null;
+    }
+
+    let date =
+      new Date(text);
+
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+
+    const parts =
+      text.split(/[\/\-\.]/);
+
+    if (parts.length === 3) {
+
+      let day =
+        parseInt(parts[0],10);
+
+      let month =
+        parseInt(parts[1],10) - 1;
+
+      let year =
+        parseInt(parts[2],10);
+
+      if (year < 100) {
+        year += 2000;
+      }
+
+      date =
+        new Date(
+          year,
+          month,
+          day
+        );
+
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+
+    }
+
+    return null;
+
+  }
+
+
+  function formatDate(value) {
+
+    const date =
+      parseDate(value);
+
+    if (!date) {
+      return "—";
+    }
+
+    return date.toLocaleDateString(
+      "en-GB",
+      {
+        day:"2-digit",
+        month:"short",
+        year:"numeric"
+      }
+    );
+
+  }
+
+
+  function formatDateTime(value) {
+
+    if (!value) {
+      return "—";
+    }
+
+    const date =
+      new Date(value);
+
+    if (isNaN(date.getTime())) {
+      return "—";
+    }
+
+    return date.toLocaleString(
+      "en-GB",
+      {
+        day:"2-digit",
+        month:"short",
+        year:"numeric",
+        hour:"2-digit",
+        minute:"2-digit"
+      }
+    );
+
+  }
+
+
+  function normalizeHeader(value) {
+
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g,"");
+
+  }
+
+
+  function allRecords() {
+
+    const records = [];
+
+    importBatches.forEach(batch => {
+
+      (batch.records || []).forEach(record => {
+
+        records.push({
+          ...record,
+          batchId: batch.id,
+          batchFileName: batch.fileName
+        });
+
+      });
+
+    });
+
+    return records;
+
+  }
+
+
+  function findRecord(recordId) {
+
+    for (
+      const batch of importBatches
+    ) {
+
+      const record =
+        (batch.records || []).find(
+          item => item.id === recordId
+        );
+
+      if (record) {
+
+        return {
+          record,
+          batch
+        };
+
+      }
+
+    }
+
+    return null;
+
+  }
+
+
+  /* =========================================================
+     STATUS
+  ========================================================= */
+
+  function getEffectiveStatus(record) {
+
+    // A manually submitted ID must remain Submitted even after its End Date.
+    if (record.status === "Submitted") {
+      return "Submitted";
+    }
+
+    const endDate =
+      parseDate(record.endDate);
+
+    if (endDate) {
+
+      const today =
+        new Date();
+
+      today.setHours(
+        0,0,0,0
+      );
+
+      endDate.setHours(
+        0,0,0,0
+      );
+
+      if (endDate < today) {
+        return "Expired";
+      }
+
+    }
+
+    if(record.status === "Collected") return "Issued";
+    return record.status ||
+      "Awaiting Capture";
+
+  }
+
+
+  function isExpiringThisMonth(record) {
+
+    const endDate =
+      parseDate(record.endDate);
+
+    if (!endDate) {
+      return false;
+    }
+
+    const today =
+      new Date();
+
+    const start =
+      new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1
+      );
+
+    const end =
+      new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        0
+      );
+
+    end.setHours(
+      23,59,59,999
+    );
+
+    return (
+      endDate >= start &&
+      endDate <= end &&
+      getEffectiveStatus(record) !== "Expired"
+    );
+
+  }
+
+
+  function statusClass(status) {
+
+    if (status === "Awaiting Capture")
+      return "status-awaiting";
+
+    if (status === "Pending")
+      return "status-pending";
+
+    if (status === "Issued")
+      return "status-collected";
+
+    if (status === "Expired")
+      return "status-expired";
+
+    return "status-captured";
+
+  }
+
+
+  function statusLabel(status) {
+
+    if (status === "Pending") return "Ready for Issuance";
+    if (status === "Submitted") return "Returned";
+    if (status === "Collected") return "Issued";
+    return status;
+
+  }
+
+
+  function statusBadge(status) {
+
+    return `
+      <span class="status-badge ${statusClass(status)}">
+        ${escapeHtml(statusLabel(status))}
+      </span>
+    `;
+
+  }
+
+
+  /* =========================================================
+     HISTORY
+  ========================================================= */
+
+  function addHistory(
+    action,
+    details
+  ) {
+
+    history.unshift({
+
+      id: generateId("HIST"),
+
+      action,
+
+      details,
+
+      timestamp:
+        new Date().toISOString()
+
+    });
+
+    history =
+      history.slice(0,300);
+
+    saveHistory();
+
+  }
+
+
+  /* =========================================================
+     TOAST
+  ========================================================= */
+
+  function showToast(
+    message,
+    type = "success"
+  ) {
+
+    const container =
+      document.getElementById(
+        "toastContainer"
+      );
+
+    const toast =
+      document.createElement("div");
+
+    toast.className =
+      `toast ${type}`;
+
+    toast.textContent =
+      message;
+
+    container.appendChild(
+      toast
+    );
+
+    setTimeout(() => {
+      toast.remove();
+    },3200);
+
+  }
+
+
+  /* =========================================================
+     NAVIGATION
+  ========================================================= */
+
+  const pageTitles = {
+    reports:["Generate reports","ID-card charts and full report"],
+
+    dashboard:[
+      "Dashboard",
+      "Physical Security ID Card Management"
+    ],
+
+    personnel:[
+      "Personnel",
+      "Master personnel list"
+    ],
+
+    submissions:[
+      "HR Uploads",
+      "New personnel imports"
+    ],
+
+    capture:[
+      "ID Capture",
+      "Personnel awaiting capture"
+    ],
+
+    idcards:[
+      "Card Issuance",
+      "Ready for issuance, issued and expired ID cards"
+    ],
+
+    cardreturn:["Pending Card Return","Staff whose ID cards must be returned"],
+    submittedids:[
+      "Card Returns",
+      "ID cards physically returned to Physical Security"
+    ],
+
+    history:[
+      "History",
+      "IDMS activity history"
+    ],
+
+    notifications:[
+      "Notifications",
+      "Important ID card alerts"
+    ],
+
+    settings:[
+      "Settings",
+      "IDMS system configuration"
+    ]
+
+  };
+
+
+  function showPage(pageName) {
+
+    document
+      .querySelectorAll(".page")
+      .forEach(page => {
+        page.classList.add("hidden");
+      });
+
+    const page =
+      document.getElementById(
+        `page-${pageName}`
+      );
+
+    if (page) {
+      page.classList.remove("hidden");
+    }
+
+    document
+      .querySelectorAll(
+        ".nav-item[data-page]"
+      )
+      .forEach(item => {
+
+        item.classList.toggle(
+          "active",
+          item.dataset.page === pageName
+        );
+
+      });
+
+    const title =
+      pageTitles[pageName];
+
+    if (title) {
+
+      document
+        .getElementById("pageTitle")
+        .textContent =
+        title[0];
+
+      document
+        .getElementById("pageSubtitle")
+        .textContent =
+        title[1];
+
+    }
+
+    closeActionMenus();
+
+    renderAll();
+
+  }
+
+
+  document
+    .querySelectorAll(
+      ".nav-item[data-page]"
+    )
+    .forEach(item => {
+
+      item.addEventListener(
+        "click",
+        () => {
+          showPage(
+            item.dataset.page
+          );
+        }
+      );
+
+    });
+
+
+  /* =========================================================
+     DASHBOARD
+  ========================================================= */
+
+  function renderDashboard() {
+
+    const records =
+      allRecords();
+
+    let awaiting = 0;
+    let pending = 0;
+    let collected = 0;
+    let expired = 0;
+
+    records.forEach(record => {
+
+      const status =
+        getEffectiveStatus(record);
+
+      if (
+        status ===
+        "Awaiting Capture"
+      ) {
+        awaiting++;
+      }
+
+      if (
+        status === "Pending"
+      ) {
+        pending++;
+      }
+
+      if (
+        status === "Issued"
+      ) {
+        collected++;
+      }
+
+      if (
+        status === "Expired"
+      ) {
+        expired++;
+      }
+
+    });
+
+    /*
+      Captured is now represented by
+      the Ready for Issuance queue.
+
+      Once capture is completed,
+      the person immediately moves
+      to Ready for Issuance.
+    */
+
+    document.getElementById(
+      "statTotal"
+    ).textContent =
+      records.length;
+
+    document.getElementById(
+      "statAwaiting"
+    ).textContent =
+      awaiting;
+
+    document.getElementById(
+      "statCaptured"
+    ).textContent =
+      pending;
+
+    document.getElementById(
+      "statPending"
+    ).textContent =
+      pending;
+
+    document.getElementById(
+      "statIssued"
+    ).textContent =
+      collected;
+
+    document.getElementById(
+      "statExpired"
+    ).textContent =
+      expired;
+
+    document.getElementById(
+      "quickExpiring"
+    ).textContent =
+      records.filter(
+        isExpiringThisMonth
+      ).length;
+
+    document.getElementById(
+      "quickBatches"
+    ).textContent =
+      importBatches.length;
+
+    renderDashboardActivity();
+    renderExpiringList();
+    renderRecentSubmissions();
+
+  }
+
+
+  function renderDashboardActivity() {
+
+    const container =
+      document.getElementById(
+        "dashboardActivity"
+      );
+
+    const recent =
+      history.slice(0,5);
+
+    if (!recent.length) {
+
+      container.innerHTML = `
+        <div class="empty-state"
+             style="padding:20px 0;">
+          <div class="empty-icon">
+            ◷
+          </div>
+
+          <strong>
+            No activity yet
+          </strong>
+
+          <p>
+            System activity will appear here.
+          </p>
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML =
+      recent.map(item => `
+
+        <div class="activity-item">
+
+          <div class="activity-dot"></div>
+
+          <div>
+
+            <div class="activity-text">
+              ${escapeHtml(item.action)}
+            </div>
+
+            <div class="activity-time">
+              ${escapeHtml(item.details)}
+              ·
+              ${formatDateTime(item.timestamp)}
+            </div>
+
+          </div>
+
+        </div>
+
+      `).join("");
+
+  }
+
+
+  function renderExpiringList() {
+
+    const container =
+      document.getElementById(
+        "expiringList"
+      );
+
+    const records =
+      allRecords()
+        .filter(isExpiringThisMonth)
+        .sort(
+          (a,b) =>
+            parseDate(a.endDate) -
+            parseDate(b.endDate)
+        );
+
+    if (!records.length) {
+
+      container.innerHTML = `
+        <div class="empty-state"
+             style="padding:25px 0;">
+
+          <div class="empty-icon">
+            ✓
+          </div>
+
+          <strong>
+            No personnel expiring this month
+          </strong>
+
+          <p>
+            No current expiry alerts.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML = `
+      <ul class="quick-list">
+
+        ${records
+          .slice(0,7)
+          .map(record => `
+
+            <li>
+
+              <div>
+
+                <div class="quick-person">
+                  ${escapeHtml(record.name)}
+                </div>
+
+                <div class="quick-detail">
+                  ${escapeHtml(
+                    record.holderStatus || record.position || "—"
+                  )}
+                </div>
+
+              </div>
+
+              <span
+                class="status-badge status-pending"
+              >
+                ${formatDate(record.endDate)}
+              </span>
+
+            </li>
+
+          `)
+          .join("")}
+
+      </ul>
+    `;
+
+  }
+
+
+  function renderRecentSubmissions() {
+
+    const container =
+      document.getElementById(
+        "recentSubmissions"
+      );
+
+    if (!importBatches.length) {
+
+      container.innerHTML = `
+        <div class="empty-state"
+             style="padding:25px 0;">
+
+          <div class="empty-icon">
+            ▣
+          </div>
+
+          <strong>
+            No HR uploads yet
+          </strong>
+
+          <p>
+            Imported HR files will appear here.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML = `
+      <ul class="quick-list">
+
+        ${importBatches
+          .slice(0,5)
+          .map(batch => `
+
+            <li>
+
+              <div>
+
+                <div class="quick-person">
+                  ${escapeHtml(
+                    batch.fileName
+                  )}
+                </div>
+
+                <div class="quick-detail">
+                  Imported
+                  ${formatDateTime(
+                    batch.importedAt
+                  )}
+                </div>
+
+              </div>
+
+              <span class="status-badge status-awaiting">
+                ${(batch.records || []).length}
+                records
+              </span>
+
+            </li>
+
+          `)
+          .join("")}
+
+      </ul>
+    `;
+
+  }
+
+
+  /* =========================================================
+     PERSONNEL
+  ========================================================= */
+
+  function renderPersonnel() {
+
+    const search =
+      document.getElementById(
+        "personnelSearch"
+      )?.value
+      .trim()
+      .toLowerCase() || "";
+
+    const filter =
+      document.getElementById(
+        "personnelStatusFilter"
+      )?.value || "All";
+
+    let records =
+      allRecords();
+
+    records =
+      records.filter(record => {
+
+        const status =
+          getEffectiveStatus(record);
+
+        const matchesSearch =
+          !search ||
+          String(
+            record.name || ""
+          )
+          .toLowerCase()
+          .includes(search) ||
+
+          String(
+            record.employeeId || ""
+          )
+          .toLowerCase()
+          .includes(search);
+
+        const matchesFilter =
+          filter === "All" ||
+          status === filter;
+
+        return (
+          matchesSearch &&
+          matchesFilter
+        );
+
+      });
+
+    document.getElementById(
+      "personnelCount"
+    ).textContent =
+      `${records.length} personnel`;
+
+    const container =
+      document.getElementById(
+        "personnelTableWrap"
+      );
+
+    if (!records.length) {
+
+      container.innerHTML = `
+        <div class="empty-state">
+
+          <div class="empty-icon">
+            ◉
+          </div>
+
+          <strong>
+            No personnel found
+          </strong>
+
+          <p>
+            Import an HR file or adjust your search/filter.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML = `
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Name</th>
+            <th>End Date</th>
+            <th>Holder Status</th>
+            <th>Employee ID</th>
+            <th>Email Address</th>
+            <th>Department</th>
+            <th>Course of Study</th>
+            <th>ID Status</th>
+            <th>Actions</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${records
+            .map(
+              renderPersonnelRow
+            )
+            .join("")}
+
+        </tbody>
+
+      </table>
+
+    `;
+
+  }
+
+
+  function renderPersonnelRow(
+    record
+  ) {
+
+    const status =
+      getEffectiveStatus(record);
+
+    return `
+
+      <tr>
+
+        <td>
+          <div class="person-name">
+            ${escapeHtml(record.name)}
+          </div>
+        </td>
+
+        <td>
+          ${formatDate(record.endDate)}
+        </td>
+
+        <td>
+          ${escapeHtml(
+            record.holderStatus || record.position || "—"
+          )}
+        </td>
+
+        <td>
+          ${
+            record.employeeId
+              ? escapeHtml(
+                  record.employeeId
+                )
+              : '<span class="muted">—</span>'
+          }
+        </td>
+
+        <td>${escapeHtml(record.email || "—")}</td>
+        <td>${escapeHtml(record.department || "—")}</td>
+
+        <td>${escapeHtml(record.courseOfStudy || "—")}</td>
+
+        <td>
+          ${statusBadge(status)}
+        </td>
+
+        <td class="actions-cell">
+          ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? `<button class="btn btn-secondary btn-small" onclick="flagCardReturn('${record.id}')">Flag card return</button>` : ""}
+          ${PSP_USER.group === "HR" && status === "Submitted" ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
+          ${PSP_USER.group === "HR" ? "" : `
+          ${
+            status !== "Awaiting Capture" && status !== "Submitted"
+              ? `
+                <button
+                  class="btn btn-primary btn-small"
+                  onclick="markAsSubmitted('${record.id}')"
+                  style="margin-right: 6px;"
+                >
+                  Mark returned
+                </button>
+              `
+              : ""
+          }
+
+          <button
+            class="action-trigger"
+            onclick="toggleActionMenu(event,'${record.id}')"
+          >
+            ⋮
+          </button>
+
+          <div
+            id="action-menu-${record.id}"
+            class="action-menu hidden"
+          >
+
+            ${getActionMenu(
+              record,
+              status
+            )}
+
+          </div>
+          `}
+        </td>
+
+      </tr>
+
+    `;
+
+  }
+
+
+  function getActionMenu(
+    record,
+    status
+  ) {
+
+    if (status === "Submitted") {
+      return `
+        <button
+          onclick="viewDetails('${record.id}')"
+        >
+          View Details
+        </button>
+      `;
+    }
+
+    let actions = "";
+
+    if (status === "Awaiting Capture") {
+      actions += `
+        <button
+          class="action-main"
+          onclick="completeCapture('${record.id}')"
+        >
+          ✓ Captured
+        </button>
+      `;
+    }
+
+    if (status === "Pending") {
+      actions += `
+        <button
+          class="action-main"
+          onclick="collectCard('${record.id}')"
+        >
+          ✓ Issued
+        </button>
+      `;
+    }
+
+    // Submission is always a deliberate action. It is never triggered by expiry.
+    if (status !== "Awaiting Capture") {
+      actions += `
+        <button
+          class="action-main"
+          onclick="markAsSubmitted('${record.id}')"
+        >
+          ⇧ Mark returned
+        </button>
+      `;
+    }
+
+    actions += `
+      <button
+        onclick="viewDetails('${record.id}')"
+      >
+        View Details
+      </button>
+    `;
+
+    return actions;
+  }
+
+
+  function toggleActionMenu(
+    event,
+    recordId
+  ) {
+
+    event.stopPropagation();
+
+    const menu =
+      document.getElementById(
+        `action-menu-${recordId}`
+      );
+
+    if (!menu) return;
+
+    const wasHidden =
+      menu.classList.contains(
+        "hidden"
+      );
+
+    closeActionMenus();
+
+    if (wasHidden) {
+      menu.classList.remove(
+        "hidden"
+      );
+    }
+
+  }
+
+
+  function closeActionMenus() {
+
+    document
+      .querySelectorAll(
+        ".action-menu"
+      )
+      .forEach(menu => {
+        menu.classList.add(
+          "hidden"
+        );
+      });
+
+  }
+
+
+  document.addEventListener(
+    "click",
+    closeActionMenus
+  );
+
+
+  /* =========================================================
+     CAPTURE
+  ========================================================= */
+
+  function renderCapture() {
+
+    const search =
+      document.getElementById(
+        "captureSearch"
+      )?.value
+      .trim()
+      .toLowerCase() || "";
+
+    let records =
+      allRecords().filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Awaiting Capture"
+      );
+
+    if (search) {
+
+      records =
+        records.filter(record =>
+
+          String(
+            record.name || ""
+          )
+          .toLowerCase()
+          .includes(search)
+
+          ||
+
+          String(
+            record.employeeId || ""
+          )
+          .toLowerCase()
+          .includes(search)
+
+        );
+
+    }
+
+    const container =
+      document.getElementById(
+        "captureTableWrap"
+      );
+
+    if (!records.length) {
+
+      container.innerHTML = `
+        <div class="empty-state">
+
+          <div class="empty-icon">
+            ✓
+          </div>
+
+          <strong>
+            No personnel awaiting capture
+          </strong>
+
+          <p>
+            New personnel imported from HR will appear here.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML = `
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Name</th>
+            <th>End Date</th>
+            <th>Holder Status</th>
+            <th>Employee ID</th>
+            <th>Email Address</th>
+            <th>Department</th>
+            <th>Course of Study</th>
+            <th>ID Status</th>
+            <th>Action</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${records.map(record => `
+
+            <tr>
+
+              <td>
+                <div class="person-name">
+                  ${escapeHtml(
+                    record.name
+                  )}
+                </div>
+              </td>
+
+              <td>
+                ${formatDate(
+                  record.endDate
+                )}
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  record.holderStatus || record.position || "—"
+                )}
+              </td>
+
+              <td>
+                ${
+                  record.employeeId
+                    ? escapeHtml(
+                        record.employeeId
+                      )
+                    : '<span class="muted">—</span>'
+                }
+              </td>
+
+              <td>${escapeHtml(record.department || "—")}</td>
+
+              <td>${escapeHtml(record.courseOfStudy || "—")}</td>
+
+              <td>
+                ${statusBadge(
+                  "Awaiting Capture"
+                )}
+              </td>
+
+              <td>
+
+                <button
+                  class="btn btn-primary btn-small"
+                  onclick="completeCapture('${record.id}')"
+                >
+                  Captured
+                </button>
+
+              </td>
+
+            </tr>
+
+          `).join("")}
+
+        </tbody>
+
+      </table>
+
+    `;
+
+  }
+
+
+  /* =========================================================
+     CAPTURE → PENDING COLLECTION
+  ========================================================= */
+
+  function completeCapture(
+    recordId
+  ) {
+
+    const found =
+      findRecord(recordId);
+
+    if (!found) return;
+
+    const record =
+      found.record;
+
+    if (
+      getEffectiveStatus(record) !==
+      "Awaiting Capture"
+    ) {
+
+      showToast(
+        "This person is no longer awaiting capture.",
+        "error"
+      );
+
+      return;
+
+    }
+
+
+    /*
+      KEY CHANGE:
+
+      As soon as Physical Security marks
+      the person as captured, their status
+      becomes Ready for Issuance.
+
+      They therefore immediately appear
+      under ID Cards → Ready for Issuance.
+    */
+
+    record.status =
+      "Pending";
+
+    record.capturedAt =
+      new Date().toISOString();
+
+    record.pendingAt =
+      new Date().toISOString();
+
+    addHistory(
+      "Personnel captured",
+      `${record.name} was captured and moved to Ready for Issuance.`
+    );
+
+    saveBatches();
+
+    showToast(
+      `${record.name} is now Ready for Issuance.`
+    );
+
+    renderAll();
+
+  }
+
+
+  /* =========================================================
+     ID CARDS
+  ========================================================= */
+
+  function renderIdCards() {
+
+    const records =
+      allRecords();
+
+    const pending =
+      records.filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Pending"
+      );
+
+    const collected =
+      records.filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Issued"
+      );
+
+    const expired =
+      records.filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Expired"
+      );
+
+    const expiring =
+      records.filter(
+        isExpiringThisMonth
+      );
+
+
+    document.getElementById(
+      "pendingSectionCount"
+    ).textContent =
+      pending.length;
+
+    document.getElementById(
+      "collectedSectionCount"
+    ).textContent =
+      collected.length;
+
+    document.getElementById(
+      "expiredSectionCount"
+    ).textContent =
+      expired.length;
+
+    document.getElementById(
+      "expiringSectionCount"
+    ).textContent =
+      expiring.length;
+
+
+    renderPendingCards(
+      pending
+    );
+
+    renderIssuedCards(
+      collected
+    );
+
+    renderExpiredCards(
+      expired
+    );
+
+    renderExpiringCards(
+      expiring
+    );
+
+  }
+
+
+  /* =========================================================
+     PENDING COLLECTION
+  ========================================================= */
+
+  function renderPendingCards(
+    records
+  ) {
+
+    const search =
+      document.getElementById(
+        "pendingSearch"
+      )?.value
+      .trim()
+      .toLowerCase() || "";
+
+    if (search) {
+
+      records =
+        records.filter(record =>
+
+          String(
+            record.name || ""
+          )
+          .toLowerCase()
+          .includes(search)
+
+          ||
+
+          String(
+            record.employeeId || ""
+          )
+          .toLowerCase()
+          .includes(search)
+
+        );
+
+    }
+
+    const container =
+      document.getElementById(
+        "pendingCardsTable"
+      );
+
+    if (!records.length) {
+
+      container.innerHTML = `
+        <div class="empty-state">
+
+          <div class="empty-icon">
+            ▤
+          </div>
+
+          <strong>
+            ${
+              search
+                ? "No matching pending ID cards"
+                : "No ID cards ready for issuance"
+            }
+          </strong>
+
+          <p>
+            Captured personnel will automatically appear here.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML = `
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Name</th>
+            <th>Holder Status</th>
+            <th>Employee ID</th>
+            <th>End Date</th>
+            <th>ID Status</th>
+            <th>Action</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${records.map(record => `
+
+            <tr>
+
+              <td>
+                <div class="person-name">
+                  ${escapeHtml(
+                    record.name
+                  )}
+                </div>
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  record.holderStatus || record.position || "—"
+                )}
+              </td>
+
+              <td>
+                ${
+                  record.employeeId
+                    ? escapeHtml(
+                        record.employeeId
+                      )
+                    : '<span class="muted">—</span>'
+                }
+              </td>
+
+              <td>
+                ${formatDate(
+                  record.endDate
+                )}
+              </td>
+
+              <td>
+                ${statusBadge(
+                  "Pending"
+                )}
+              </td>
+
+              <td>
+
+                <button
+                  class="btn btn-primary btn-small"
+                  onclick="collectCard('${record.id}')"
+                >
+                  Issued
+                </button>
+
+              </td>
+
+            </tr>
+
+          `).join("")}
+
+        </tbody>
+
+      </table>
+
+    `;
+
+  }
+
+
+  /* =========================================================
+     SUBMITTED
+  ========================================================= */
+
+  function markAsSubmitted(recordId) {
+
+    const found = findRecord(recordId);
+
+    if (!found) return;
+
+    const record = found.record;
+    const status = getEffectiveStatus(record);
+
+    if (status === "Awaiting Capture") {
+      showToast(
+        "This person has not completed ID capture yet.",
+        "error"
+      );
+      return;
+    }
+
+    if (status === "Submitted") {
+      showToast("This ID has already been submitted.", "error");
+      return;
+    }
+
+    record.status = "Submitted";
+    record.submittedAt = new Date().toISOString();
+
+    addHistory(
+      "ID card submitted",
+      `${record.name} submitted their physical ID card to Physical Security.`
+    );
+
+    saveBatches();
+
+    showToast(
+      `${record.name} has been moved to Submitted ID’s.`
+    );
+
+    renderAll();
+  }
+
+
+  /* =========================================================
+     MARK COLLECTED
+  ========================================================= */
+
+  function collectCard(
+    recordId
+  ) {
+
+    const found =
+      findRecord(recordId);
+
+    if (!found) return;
+
+    const record =
+      found.record;
+
+    if (
+      getEffectiveStatus(record) !==
+      "Pending"
+    ) {
+
+      showToast(
+        "This ID card is not currently awaiting issuance.",
+        "error"
+      );
+
+      return;
+
+    }
+
+
+    record.status =
+      "Issued";
+
+    record.collectedAt =
+      new Date().toISOString();
+
+
+    addHistory(
+      "ID card issued",
+      `${record.name} was issued their ID card.`
+    );
+
+
+    saveBatches();
+
+
+    showToast(
+      `${record.name} has been moved to Issued ID Cards.`
+    );
+
+
+    renderAll();
+
+  }
+
+
+  /* =========================================================
+     COLLECTED
+  ========================================================= */
+
+  function renderIssuedCards(
+    records
+  ) {
+
+    const search =
+      document.getElementById(
+        "collectedSearch"
+      )?.value
+      .trim()
+      .toLowerCase() || "";
+
+    if (search) {
+
+      records =
+        records.filter(record =>
+
+          String(
+            record.name || ""
+          )
+          .toLowerCase()
+          .includes(search)
+
+          ||
+
+          String(
+            record.employeeId || ""
+          )
+          .toLowerCase()
+          .includes(search)
+
+        );
+
+    }
+
+    const container =
+      document.getElementById(
+        "collectedCardsTable"
+      );
+
+    if (!records.length) {
+
+      container.innerHTML = `
+        <div class="empty-state">
+
+          <div class="empty-icon">
+            ✓
+          </div>
+
+          <strong>
+            ${
+              search
+                ? "No matching collected ID cards"
+                : "No collected ID cards yet"
+            }
+          </strong>
+
+          <p>
+            Personnel who collect their cards will appear here.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML = `
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Name</th>
+            <th>Holder Status</th>
+            <th>Employee ID</th>
+            <th>Issued Date</th>
+            <th>ID Status</th>
+            <th>Action</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${records.map(record => `
+
+            <tr>
+
+              <td>
+                <div class="person-name">
+                  ${escapeHtml(
+                    record.name
+                  )}
+                </div>
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  record.holderStatus || record.position || "—"
+                )}
+              </td>
+
+              <td>
+                ${
+                  record.employeeId
+                    ? escapeHtml(
+                        record.employeeId
+                      )
+                    : '<span class="muted">—</span>'
+                }
+              </td>
+
+              <td>
+                ${formatDateTime(
+                  record.collectedAt
+                )}
+              </td>
+
+              <td>
+                ${statusBadge(
+                  "Issued"
+                )}
+              </td>
+
+              <td>
+
+                <button
+                  class="btn btn-secondary btn-small"
+                  onclick="viewDetails('${record.id}')"
+                >
+                  View Details
+                </button>
+
+              </td>
+
+            </tr>
+
+          `).join("")}
+
+        </tbody>
+
+      </table>
+
+    `;
+
+  }
+
+
+  /* =========================================================
+     EXPIRED ID CARDS
+  ========================================================= */
+
+  function renderExpiredCards(
+    records
+  ) {
+
+    const container =
+      document.getElementById(
+        "expiredCardsTable"
+      );
+
+    if (!records.length) {
+
+      container.innerHTML = `
+        <div class="empty-state">
+
+          <div class="empty-icon">
+            ✓
+          </div>
+
+          <strong>
+            No expired ID cards
+          </strong>
+
+          <p>
+            Personnel whose End Date has passed will appear here automatically.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML = `
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Name</th>
+            <th>Holder Status</th>
+            <th>Employee ID</th>
+            <th>End Date</th>
+            <th>ID Status</th>
+            <th>Action</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${records.map(record => `
+
+            <tr>
+
+              <td>
+                <div class="person-name">
+                  ${escapeHtml(
+                    record.name
+                  )}
+                </div>
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  record.holderStatus || record.position || "—"
+                )}
+              </td>
+
+              <td>
+                ${
+                  record.employeeId
+                    ? escapeHtml(
+                        record.employeeId
+                      )
+                    : '<span class="muted">—</span>'
+                }
+              </td>
+
+              <td>
+                ${formatDate(
+                  record.endDate
+                )}
+              </td>
+
+              <td>
+                ${statusBadge(
+                  "Expired"
+                )}
+              </td>
+
+              <td class="actions-cell">
+                ${
+                  getEffectiveStatus(record) !== "Submitted"
+                    ? `
+                      <button
+                        class="btn btn-primary btn-small"
+                        onclick="markAsSubmitted('${record.id}')"
+                        style="margin-right: 6px;"
+                      >
+                        Mark returned
+                      </button>
+                    `
+                    : ""
+                }
+                <button
+                  class="action-trigger"
+                  onclick="toggleActionMenu(event,'${record.id}')"
+                >
+                  ⋮
+                </button>
+                <div
+                  id="action-menu-${record.id}"
+                  class="action-menu hidden"
+                >
+                  ${getActionMenu(record, "Expired")}
+                </div>
+              </td>
+
+            </tr>
+
+          `).join("")}
+
+        </tbody>
+
+      </table>
+
+    `;
+
+  }
+
+
+  /* =========================================================
+     EXPIRING THIS MONTH
+  ========================================================= */
+
+  function renderExpiringCards(
+    records
+  ) {
+
+    const container =
+      document.getElementById(
+        "expiringCardsTable"
+      );
+
+    if (!records.length) {
+
+      container.innerHTML = `
+        <div class="empty-state">
+
+          <div class="empty-icon">
+            ✓
+          </div>
+
+          <strong>
+            No personnel expiring this month
+          </strong>
+
+          <p>
+            Personnel with End Dates in the current month will appear here.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+    records.sort(
+      (a,b) =>
+        parseDate(a.endDate) -
+        parseDate(b.endDate)
+    );
+
+    container.innerHTML = `
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Name</th>
+            <th>Holder Status</th>
+            <th>Employee ID</th>
+            <th>End Date</th>
+            <th>ID Status</th>
+            <th>Action</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${records.map(record => `
+
+            <tr>
+
+              <td>
+                <div class="person-name">
+                  ${escapeHtml(
+                    record.name
+                  )}
+                </div>
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  record.holderStatus || record.position || "—"
+                )}
+              </td>
+
+              <td>
+                ${
+                  record.employeeId
+                    ? escapeHtml(
+                        record.employeeId
+                      )
+                    : '<span class="muted">—</span>'
+                }
+              </td>
+
+              <td>
+                ${formatDate(
+                  record.endDate
+                )}
+              </td>
+
+              <td>
+                ${statusBadge(
+                  getEffectiveStatus(record)
+                )}
+              </td>
+
+              <td class="actions-cell">
+                ${
+                  getEffectiveStatus(record) !== "Submitted"
+                    ? `
+                      <button
+                        class="btn btn-primary btn-small"
+                        onclick="markAsSubmitted('${record.id}')"
+                        style="margin-right: 6px;"
+                      >
+                        Mark returned
+                      </button>
+                    `
+                    : ""
+                }
+                <button
+                  class="action-trigger"
+                  onclick="toggleActionMenu(event,'${record.id}')"
+                >
+                  ⋮
+                </button>
+                <div
+                  id="action-menu-${record.id}"
+                  class="action-menu hidden"
+                >
+                  ${getActionMenu(record, getEffectiveStatus(record))}
+                </div>
+              </td>
+
+            </tr>
+
+          `).join("")}
+
+        </tbody>
+
+      </table>
+
+    `;
+
+  }
+
+
+  /* =========================================================
+     SUBMITTED IDs
+  ========================================================= */
+
+  function renderSubmittedIds() {
+
+    let records = allRecords().filter(
+      record => getEffectiveStatus(record) === "Submitted"
+    );
+
+    const search =
+      document.getElementById("submittedSearch")?.value
+        .trim()
+        .toLowerCase() || "";
+
+    if (search) {
+      records = records.filter(record =>
+        String(record.name || "").toLowerCase().includes(search) ||
+        String(record.employeeId || "").toLowerCase().includes(search)
+      );
+    }
+
+    const container = document.getElementById("submittedIdsTable");
+    if (!container) return;
+
+    if (!records.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">✓</div>
+          <strong>${search ? "No matching submitted IDs" : "No submitted IDs yet"}</strong>
+          <p>IDs deliberately marked as submitted will appear here.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>End Date</th>
+            <th>Holder Status</th>
+            <th>Employee ID</th>
+            <th>Email Address</th>
+            <th>Department</th>
+            <th>Course of Study</th>
+            <th>Returned Date</th>
+            <th>HR Verification</th>
+            <th>ID Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map(record => `
+            <tr>
+              <td><div class="person-name">${escapeHtml(record.name)}</div></td>
+              <td>${formatDate(record.endDate)}</td>
+              <td>${escapeHtml(record.holderStatus || record.position || "—")}</td>
+              <td>${record.employeeId ? escapeHtml(record.employeeId) : '<span class="muted">—</span>'}</td>
+              <td>${escapeHtml(record.email || "—")}</td>
+              <td>${escapeHtml(record.department || "—")}</td>
+              <td>${escapeHtml(record.courseOfStudy || "—")}</td>
+              <td>${formatDateTime(record.submittedAt)}</td>
+              <td>${record.hrVerified ? '<span class="status-badge status-collected">Confirmed</span>' : '<span class="status-badge status-pending">Awaiting confirmation</span>'}</td>
+              <td>${statusBadge("Submitted")}</td>
+              <td><button class="btn btn-secondary btn-small" onclick="viewDetails('${record.id}')">View Details</button> ${PSP_USER.group==='HR' ? (record.hrVerified ? 'Confirmed' : `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>`) : `<button class="btn btn-primary btn-small" onclick="transferSubmittedID('${record.id}',this)">Send return record</button>`}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+
+  /* =========================================================
+     SUBMISSIONS
+  ========================================================= */
+
+  document
+    .getElementById("excelFile")
+    .addEventListener(
+      "change",
+      handleFileImport
+    );
+
+
+  async function handleFileImport(
+    event
+  ) {
+
+    const file =
+      event.target.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+
+      const data =
+        await file.arrayBuffer();
+
+      const workbook =
+        XLSX.read(
+          data,
+          {
+            type:"array",
+            cellDates:true
+          }
+        );
+
+      const sheet =
+        workbook.Sheets[
+          workbook.SheetNames[0]
+        ];
+
+      const rows =
+        XLSX.utils.sheet_to_json(
+          sheet,
+          {
+            defval:""
+          }
+        );
+
+      if (!rows.length) {
+
+        showToast(
+          "The selected file contains no personnel records.",
+          "error"
+        );
+
+        event.target.value = "";
+
+        return;
+
+      }
+
+
+      const firstRow =
+        rows[0];
+
+      const keys =
+        Object.keys(firstRow);
+
+      const mapped = {};
+
+      keys.forEach(key => {
+
+        mapped[
+          normalizeHeader(key)
+        ] = key;
+
+      });
+
+
+      const nameKey =
+        mapped.name ||
+        mapped.fullname ||
+        mapped.personname;
+
+      const endDateKey =
+        mapped.enddate ||
+        mapped.expirydate ||
+        mapped.expirationdate;
+
+      const holderStatusKey = mapped.status;
+
+      const employeeIdKey =
+        mapped.employeeid ||
+        mapped.staffid ||
+        mapped.id;
+
+      const emailKey = mapped.email || mapped.emailaddress || mapped.workemail;
+      const departmentKey =
+        mapped.department ||
+        mapped.dept;
+
+      const courseOfStudyKey =
+        mapped.courseofstudy ||
+        mapped.course ||
+        mapped.fieldofstudy;
+
+
+      if (
+        !nameKey ||
+        !endDateKey ||
+        !holderStatusKey
+      ) {
+
+        showToast(
+          "The file must contain Name, End Date and Status columns.",
+          "error"
+        );
+
+        event.target.value = "";
+
+        return;
+
+      }
+
+
+      const records = [];
+
+
+      rows.forEach(row => {
+
+        const name =
+          String(
+            row[nameKey] || ""
+          ).trim();
+
+        if (!name) {
+          return;
+        }
+
+        records.push({
+
+          id:
+            generateId("PERSON"),
+
+          name,
+
+          endDate:
+            row[endDateKey] || "",
+
+          holderStatus:
+            String(
+              row[holderStatusKey] || ""
+            ).trim(),
+
+          email: emailKey ? String(row[emailKey] || "").trim() : "",
+
+          employeeId:
+            employeeIdKey
+              ? String(
+                  row[employeeIdKey] || ""
+                ).trim()
+              : "",
+
+          department:
+            departmentKey
+              ? String(row[departmentKey] || "").trim()
+              : "",
+
+          courseOfStudy:
+            courseOfStudyKey
+              ? String(row[courseOfStudyKey] || "").trim()
+              : "",
+
+          status:
+            "Awaiting Capture",
+
+          importedAt:
+            new Date().toISOString(),
+
+          capturedAt:null,
+
+          pendingAt:null,
+
+          collectedAt:null
+
+        });
+
+      });
+
+
+      if (!records.length) {
+
+        showToast(
+          "No valid personnel records were found.",
+          "error"
+        );
+
+        event.target.value = "";
+
+        return;
+
+      }
+
+
+      const batch = {
+
+        id:
+          generateId("BATCH"),
+
+        fileName:
+          file.name,
+
+        importedAt:
+          new Date().toISOString(),
+
+        records
+
+      };
+
+
+      importBatches.unshift(
+        batch
+      );
+
+      saveBatches();
+
+
+      addHistory(
+        "HR personnel file imported",
+        `${file.name} imported with ${records.length} personnel record${records.length === 1 ? "" : "s"}.`
+      );
+
+
+      event.target.value = "";
+
+
+      showToast(
+        `${records.length} personnel imported successfully.`
+      );
+
+
+      showPage(
+        "submissions"
+      );
+
+    }
+
+    catch(error) {
+
+      console.error(error);
+
+      showToast(
+        "Unable to read the selected file.",
+        "error"
+      );
+
+      event.target.value = "";
+
+    }
+
+  }
+
+
+  function renderSubmissions() {
+
+    const container =
+      document.getElementById(
+        "submissionBatches"
+      );
+
+    if (!importBatches.length) {
+
+      container.innerHTML = `
+        <div class="card">
+
+          <div class="empty-state">
+
+            <div class="empty-icon">
+              ▣
+            </div>
+
+            <strong>
+              No HR uploads yet
+            </strong>
+
+            <p>
+              Upload an Excel or CSV file above.
+            </p>
+
+          </div>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+
+    container.innerHTML =
+      importBatches.map(
+        batch => {
+
+          const records =
+            batch.records || [];
+
+          return `
+
+            <div class="card batch-card">
+
+              <div class="card-header">
+
+                <div>
+
+                  <div class="batch-file">
+                    ${escapeHtml(
+                      batch.fileName
+                    )}
+                  </div>
+
+                  <div class="batch-meta">
+                    Imported
+                    ${formatDateTime(
+                      batch.importedAt
+                    )}
+                    ·
+                    ${records.length}
+                    record${records.length === 1 ? "" : "s"}
+                  </div>
+
+                </div>
+
+
+                <div class="batch-actions">
+
+                  <button
+                    class="btn btn-danger btn-small"
+                    onclick="deleteBatch('${batch.id}')"
+                  >
+                    Delete Batch
+                  </button>
+
+                </div>
+
+              </div>
+
+
+              <div class="table-wrap">
+
+                <table>
+
+                  <thead>
+
+                    <tr>
+                      <th>Name</th>
+                      <th>End Date</th>
+                      <th>Holder Status</th>
+                      <th>Employee ID</th>
+                      <th>ID Status</th>
+                    </tr>
+
+                  </thead>
+
+                  <tbody>
+
+                    ${records.map(record => `
+
+                      <tr>
+
+                        <td>
+                          <div class="person-name">
+                            ${escapeHtml(
+                              record.name
+                            )}
+                          </div>
+                        </td>
+
+                        <td>
+                          ${formatDate(
+                            record.endDate
+                          )}
+                        </td>
+
+                        <td>
+                          ${escapeHtml(
+                            record.holderStatus || record.position || "—"
+                          )}
+                        </td>
+
+                        <td>
+                          ${
+                            record.employeeId
+                              ? escapeHtml(
+                                  record.employeeId
+                                )
+                              : '<span class="muted">—</span>'
+                          }
+                        </td>
+
+                        <td>
+                          ${statusBadge(
+                            getEffectiveStatus(record)
+                          )}
+                        </td>
+
+                      </tr>
+
+                    `).join("")}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            </div>
+
+          `;
+
+        }
+      ).join("");
+
+  }
+
+
+  function deleteBatch(
+    batchId
+  ) {
+
+    const batch =
+      importBatches.find(
+        item => item.id === batchId
+      );
+
+    if (!batch) {
+      return;
+    }
+
+    const confirmed =
+      confirm(
+        `Delete the HR upload batch "${batch.fileName}"?\n\nOnly this batch and its personnel records will be removed.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+
+    importBatches =
+      importBatches.filter(
+        item =>
+          item.id !== batchId
+      );
+
+    saveBatches();
+
+
+    addHistory(
+      "HR import batch deleted",
+      `${batch.fileName} was deleted with ${(batch.records || []).length} personnel record${(batch.records || []).length === 1 ? "" : "s"}.`
+    );
+
+
+    showToast(
+      `${batch.fileName} deleted.`
+    );
+
+
+    renderAll();
+
+  }
+
+
+  /* =========================================================
+     HISTORY
+  ========================================================= */
+
+  function renderHistory() {
+
+    const container =
+      document.getElementById(
+        "historyList"
+      );
+
+    if (!history.length) {
+
+      container.innerHTML = `
+        <div class="empty-state">
+
+          <div class="empty-icon">
+            ◷
+          </div>
+
+          <strong>
+            No history yet
+          </strong>
+
+          <p>
+            Imports and ID card actions will appear here.
+          </p>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+
+    container.innerHTML =
+      history.map(item => `
+
+        <div class="history-item">
+
+          <div>
+
+            <div class="history-action">
+              ${escapeHtml(
+                item.action
+              )}
+            </div>
+
+            <div class="history-details">
+              ${escapeHtml(
+                item.details
+              )}
+            </div>
+
+          </div>
+
+          <div class="history-time">
+            ${formatDateTime(
+              item.timestamp
+            )}
+          </div>
+
+        </div>
+
+      `).join("");
+
+  }
+
+
+  document
+    .getElementById(
+      "clearHistoryBtn"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        if (!history.length) {
+
+          showToast(
+            "There is no history to clear.",
+            "error"
+          );
+
+          return;
+
+        }
+
+
+        const confirmed =
+          confirm(
+            "Clear the entire activity history?"
+          );
+
+        if (!confirmed) {
+          return;
+        }
+
+
+        history = [];
+
+        saveHistory();
+
+        showToast(
+          "Activity history cleared."
+        );
+
+        renderAll();
+
+      }
+    );
+
+
+  /* =========================================================
+     NOTIFICATIONS
+  ========================================================= */
+
+  function renderNotifications() {
+
+    const container =
+      document.getElementById(
+        "notificationsList"
+      );
+
+    const records =
+      allRecords();
+
+    const expiring =
+      records.filter(
+        isExpiringThisMonth
+      );
+
+    const expired =
+      records.filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Expired"
+      );
+
+
+    if (
+      !expiring.length &&
+      !expired.length
+    ) {
+
+      container.innerHTML = `
+        <div class="card">
+
+          <div class="empty-state">
+
+            <div class="empty-icon">
+              ✓
+            </div>
+
+            <strong>
+              No current notifications
+            </strong>
+
+            <p>
+              There are currently no expiry alerts.
+            </p>
+
+          </div>
+
+        </div>
+      `;
+
+      return;
+
+    }
+
+
+    let html = "";
+
+
+    expiring.forEach(
+      record => {
+
+        html += `
+
+          <div class="notification">
+
+            <div class="notification-icon">
+              !
+            </div>
+
+            <div>
+
+              <div class="notification-title">
+                Expiring This Month
+              </div>
+
+              <div class="notification-text">
+
+                <strong>
+                  ${escapeHtml(
+                    record.name
+                  )}
+                </strong>
+
+                has an End Date of
+
+                <strong>
+                  ${formatDate(
+                    record.endDate
+                  )}
+                </strong>.
+
+              </div>
+
+            </div>
+
+          </div>
+
+        `;
+
+      }
+    );
+
+
+    expired.forEach(
+      record => {
+
+        html += `
+
+          <div class="notification expired">
+
+            <div class="notification-icon">
+              !
+            </div>
+
+            <div>
+
+              <div class="notification-title">
+                Expired ID Card
+              </div>
+
+              <div class="notification-text">
+
+                <strong>
+                  ${escapeHtml(
+                    record.name
+                  )}
+                </strong>
+
+                reached their End Date on
+
+                <strong>
+                  ${formatDate(
+                    record.endDate
+                  )}
+                </strong>.
+
+              </div>
+
+            </div>
+
+          </div>
+
+        `;
+
+      }
+    );
+
+
+    container.innerHTML =
+      html;
+
+  }
+
+
+  /* =========================================================
+     DETAILS
+  ========================================================= */
+
+  function viewDetails(
+    recordId
+  ) {
+
+    const found =
+      findRecord(recordId);
+
+    if (!found) {
+      return;
+    }
+
+    const record =
+      found.record;
+
+    const batch =
+      found.batch;
+
+    const status =
+      getEffectiveStatus(record);
+
+
+    document.getElementById(
+      "detailModalBody"
+    ).innerHTML = `
+
+      <div class="detail-grid">
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Name
+          </div>
+
+          <div class="detail-value">
+            ${escapeHtml(
+              record.name
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Status
+          </div>
+
+          <div class="detail-value">
+            ${statusBadge(
+              status
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            End Date
+          </div>
+
+          <div class="detail-value">
+            ${formatDate(
+              record.endDate
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Holder Status
+          </div>
+
+          <div class="detail-value">
+            ${escapeHtml(
+              record.holderStatus || record.position || "—"
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Employee ID
+          </div>
+
+          <div class="detail-value">
+            ${
+              record.employeeId
+                ? escapeHtml(
+                    record.employeeId
+                  )
+                : "—"
+            }
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Imported Batch
+          </div>
+
+          <div class="detail-value">
+            ${escapeHtml(
+              batch.fileName
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Imported
+          </div>
+
+          <div class="detail-value">
+            ${formatDateTime(
+              record.importedAt
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Captured
+          </div>
+
+          <div class="detail-value">
+            ${formatDateTime(
+              record.capturedAt
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Ready for Issuance
+          </div>
+
+          <div class="detail-value">
+            ${formatDateTime(
+              record.pendingAt
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="detail-item">
+
+          <div class="detail-label">
+            Issued
+          </div>
+
+          <div class="detail-value">
+            ${formatDateTime(
+              record.collectedAt
+            )}
+          </div>
+
+        </div>
+
+      </div>
+
+    `;
+
+
+    document
+      .getElementById(
+        "detailModal"
+      )
+      .classList.remove(
+        "hidden"
+      );
+
+  }
+
+
+  function closeModal() {
+
+    document
+      .getElementById(
+        "detailModal"
+      )
+      .classList.add(
+        "hidden"
+      );
+
+  }
+
+
+  document
+    .getElementById(
+      "detailModal"
+    )
+    .addEventListener(
+      "click",
+      event => {
+
+        if (
+          event.target.id ===
+          "detailModal"
+        ) {
+
+          closeModal();
+
+        }
+
+      }
+    );
+
+
+  /* =========================================================
+     BADGES
+  ========================================================= */
+
+  function updateNavigationBadges() {
+
+    const records =
+      allRecords();
+
+    const awaiting =
+      records.filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Awaiting Capture"
+      ).length;
+
+    const pending =
+      records.filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Pending"
+      ).length;
+
+    const alerts =
+      records.filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Expired" ||
+          isExpiringThisMonth(record)
+      ).length;
+
+
+    updateBadge(
+      "captureBadge",
+      awaiting
+    );
+
+    updateBadge(
+      "pendingBadge",
+      pending
+    );
+
+    updateBadge(
+      "submittedBadge",
+      records.filter(
+        record => getEffectiveStatus(record) === "Submitted"
+      ).length
+    );
+
+    updateBadge(
+      "notificationBadge",
+      alerts
+    );
+
+  }
+
+
+  function updateBadge(
+    id,
+    number
+  ) {
+
+    const badge =
+      document.getElementById(id);
+
+    if (!badge) {
+      return;
+    }
+
+    badge.textContent =
+      number;
+
+    badge.classList.toggle(
+      "hidden",
+      number <= 0
+    );
+
+  }
+
+
+  /* =========================================================
+     SEARCH EVENTS
+  ========================================================= */
+
+  document
+    .getElementById(
+      "personnelSearch"
+    )
+    .addEventListener(
+      "input",
+      renderPersonnel
+    );
+
+
+  document
+    .getElementById(
+      "personnelStatusFilter"
+    )
+    .addEventListener(
+      "change",
+      renderPersonnel
+    );
+
+
+  document
+    .getElementById(
+      "captureSearch"
+    )
+    .addEventListener(
+      "input",
+      renderCapture
+    );
+
+
+  document
+    .getElementById(
+      "pendingSearch"
+    )
+    .addEventListener(
+      "input",
+      renderIdCards
+    );
+
+
+  document
+    .getElementById(
+      "collectedSearch"
+    )
+    .addEventListener(
+      "input",
+      renderIdCards
+    );
+
+
+  document
+    .getElementById("submittedSearch")
+    ?.addEventListener("input", renderSubmittedIds);
+
+
+  /* =========================================================
+     LOGOUT
+  ========================================================= */
+
+  document
+    .getElementById(
+      "logoutBtn"
+    )
+    .addEventListener(
+      "click",
+      () => {
+
+        const confirmed =
+          confirm(
+            "Log out of the Physical Security Portal?"
+          );
+
+        if (!confirmed) {
+          return;
+        }
+
+        fetch('/logout',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF}}).then(()=>location.href='/login');
+
+      }
+    );
+
+
+  /* =========================================================
+     RENDER EVERYTHING
+  ========================================================= */
+
+  function flagCardReturn(id){const found=findRecord(id);if(!found)return;const reason=prompt('Reason for card return (resignation, retirement or other):');if(!reason)return;found.record.returnRequired=true;found.record.returnReason=reason;found.record.returnFlaggedAt=new Date().toISOString();saveBatches();renderAll();}
+  function confirmSubmittedID(id){const found=findRecord(id);if(!found)return;found.record.hrVerified=true;found.record.hrVerifiedAt=new Date().toISOString();saveBatches();showToast('Submitted ID confirmed by HR.','success');renderAll();}
+  function markCardReturned(id){if(!['Admin','Physical Security'].includes(PSP_USER.group))return;const found=findRecord(id);if(!found)return;if(!confirm('Confirm that this ID card has been physically returned?'))return;found.record.returnStatus='Returned';found.record.returnedAt=new Date().toISOString();saveBatches();renderAll();}
+  function renderCardReturns(){const records=allRecords().filter(r=>r.returnRequired && r.returnStatus!=='Returned');const el=document.getElementById('cardReturnTable');if(!el)return;el.innerHTML=records.length?`<table><thead><tr><th>Name</th><th>Employee ID</th><th>Email</th><th>Reason</th><th>Flagged</th><th>Status</th><th>Action</th></tr></thead><tbody>${records.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.employeeId||'—')}</td><td>${escapeHtml(r.email||'—')}</td><td>${escapeHtml(r.returnReason||'—')}</td><td>${formatDateTime(r.returnFlaggedAt)}</td><td>${escapeHtml(r.returnStatus||'Pending Card Return')}</td><td>${['Admin','Physical Security'].includes(PSP_USER.group)?`<button class="btn btn-primary btn-small" onclick="markCardReturned('${r.id}')">Mark returned</button>`:'—'}</td></tr>`).join('')}</tbody></table>`:'<div class="empty-state">No ID cards are currently awaiting return.</div>';}
+
+  function renderAll() {
+
+    renderDashboard();
+
+    renderPersonnel();
+
+    renderSubmissions();
+
+    renderCapture();
+
+    renderIdCards();
+
+    renderSubmittedIds();
+    renderCardReturns();
+
+    renderHistory();
+
+    renderNotifications();
+
+    updateNavigationBadges();
+
+  }
+
+
+  /* =========================================================
+     START
+  ========================================================= */
+
+  if(PSP_USER.group==='HR'){
+    document.querySelectorAll('.page button').forEach(el=>{
+      const page=el.closest('.page')?.id;
+      const allowed=(['page-personnel','page-submittedids'].includes(page) && /Flag card return|Confirm ID received/.test(el.textContent));
+      if(!allowed)el.style.display='none';
+    });
+    document.querySelectorAll('#page-submissions input, #page-submissions select, #page-submissions textarea, #page-settings input, #page-settings select, #page-settings textarea').forEach(el=>{if(!(el.id==='excelFile' && el.type==='file'))el.disabled=true;});
+  }
+  renderAll();
+
+</script>
+
+<script>const section=new URLSearchParams(location.search).get('section');if(section==='reports')showPage('reports');if(section==='capture')showPage('capture');if(section==='cardreturn')showPage('cardreturn');if(section==='collection'||section==='expired'){showPage('idcards');document.getElementById(section==='expired'?'expiredCardsTable':'pendingCardsTable').scrollIntoView();}</script><script>function drawReportCharts(containerId, counts){
+ const box=document.getElementById(containerId);box.replaceChildren();
+ const entries=Object.entries(counts),total=entries.reduce((s,[k,n])=>s+n,0);
+ if(!total){const empty=document.createElement('div');empty.className='reports-placeholder';empty.textContent='No records match these filters. Adjust your filters and generate the report again.';box.append(empty);return;}
+ const colors=['#0a6634','#5088b3','#d2a64b','#ae5065','#8776b0','#566871'];
+ const ns='http://www.w3.org/2000/svg';
+ function el(name,attrs,text){const e=document.createElementNS(ns,name);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;return e;}
+ const bars=el('svg',{viewBox:'0 0 600 '+(entries.length*48+30),role:'img','aria-label':'Bar chart of report records by status',style:'width:100%;max-width:650px'});
+ const max=Math.max(...entries.map(x=>x[1]));
+ entries.forEach(([label,n],i)=>{const y=i*48+10;bars.append(el('text',{x:0,y:y+20,'font-size':14},label),el('rect',{x:160,y,width:330*n/max,height:28,fill:colors[i%colors.length],rx:4}),el('text',{x:500,y:y+20,'font-size':14},String(n)));});
+ const pie=el('svg',{viewBox:'0 0 230 230',role:'img','aria-label':'Pie chart of report records by status',style:'width:230px;max-width:100%'});let angle=-Math.PI/2;
+ entries.forEach(([label,n],i)=>{if(!n)return;const next=angle+2*Math.PI*n/total;let shape;if(n===total)shape=el('circle',{cx:115,cy:115,r:95,fill:colors[i%colors.length]});else shape=el('path',{d:`M115 115 L${115+95*Math.cos(angle)} ${115+95*Math.sin(angle)} A95 95 0 ${n/total>0.5?1:0} 1 ${115+95*Math.cos(next)} ${115+95*Math.sin(next)} Z`,fill:colors[i%colors.length]});shape.append(el('title',{},`${label}: ${n}`));pie.append(shape);angle=next;});
+ const layout=document.createElement('div');layout.style='display:flex;align-items:center;gap:24px;flex-wrap:wrap';layout.append(pie,bars);box.append(layout);
+ const legend=document.createElement('p');legend.textContent=entries.map(([label,n])=>`${label}: ${n} (${Math.round(n/total*100)}%)`).join(' · ');box.append(legend);
+}
+let icmsReportRows=[];
+function generateICMSReport(){
+ const status=document.getElementById('icmsReportStatus').value,from=document.getElementById('icmsReportFrom').value,to=document.getElementById('icmsReportTo').value;
+ if(from&&to&&from>to){showToast('Start date must be before end date.','error');return;}
+ icmsReportRows=allRecords().filter(r=>{const day=(r.importedAt||'').slice(0,10);return (!status||getEffectiveStatus(r)===status)&&(!from||day>=from)&&(!to||(day&&day<=to));});
+ const counts={'Awaiting Capture':0,'Pending':0,'Issued':0,'Expired':0,'Submitted':0};icmsReportRows.forEach(r=>{const s=getEffectiveStatus(r);counts[s]=(counts[s]||0)+1;});drawReportCharts('icmsReportCharts',counts);
+ document.getElementById('icmsReportCount').textContent=icmsReportRows.length+' records';
+ document.getElementById('icmsReportTable').innerHTML='<table><thead><tr>'+['Name','Employee ID','Holder Status','Department','Course of Study','End Date','Card Status','Imported','Captured','Issued','Submitted'].map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+icmsReportRows.map(r=>'<tr>'+[r.name,r.employeeId,r.holderStatus||r.position,r.department,r.courseOfStudy,formatDate(r.endDate),getEffectiveStatus(r),formatDateTime(r.importedAt),formatDateTime(r.capturedAt),formatDateTime(r.collectedAt),formatDateTime(r.submittedAt)].map(x=>'<td>'+escapeHtml(String(x||'—'))+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+}
+function exportICMSReport(){
+ if(!icmsReportRows.length){showToast('Generate a report with records first.','error');return;}
+ const rows=[['Name','Employee ID','Holder Status','Department','Course of Study','End Date','Card Status','Imported','Captured','Issued','Submitted'],...icmsReportRows.map(r=>[r.name,r.employeeId,r.holderStatus||r.position,r.department,r.courseOfStudy,formatDate(r.endDate),getEffectiveStatus(r),r.importedAt,r.capturedAt,r.collectedAt,r.submittedAt])];
+ const csv=rows.map(r=>r.map(x=>{let v=String(x||'');if(/^[=+@-]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='icms-report.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function transferSubmittedID(id,button){
+ button.disabled=true;
+ try{
+  const config=await fetch('/api/icms/transfer-config');const settings=await config.json();if(!config.ok)throw new Error(settings.message);
+  if(!settings.recipients.length)throw new Error('Designated email recipients have not been configured.');
+  const found=findRecord(id);if(!found)throw new Error('Record not found.');
+  if(!confirm('Send '+found.record.name+"'s ID details and submission date to: "+settings.recipients.join(', ')+'?'))return;
+  const response=await fetch('/api/icms/records/'+encodeURIComponent(id)+'/transfer',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF}});const result=await response.json();if(!response.ok)throw new Error(result.message);alert(result.message);location.reload();
+ }catch(e){showToast(e.message||'Transfer failed.','error');}finally{button.disabled=false;}
+}
+</script></body>
+</html>

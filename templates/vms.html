@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>const PSP_CSRF={{csrf|tojson}}; async function pspLogout(){await fetch('/logout',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF}});location.href='/login';}</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visitor Management System</title>
+<style>
+:root {
+    --gbb-green: #0a6634;
+    --gbb-green-light: #16a350;
+    --gbb-green-dark: #05401e;
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --text-light: #9ca3af;
+    --bg-main: #f3f4f6;
+    --bg-card: #ffffff;
+    --border-color: #e5e7eb;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --amber: #92400e;
+    --amber-bg: #fef3c7;
+    --amber-border: #fde68a;
+    --sidebar-w: 250px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { color: var(--gbb-green-dark); font-weight: 600; margin-bottom: 1rem; }
+a { color: var(--gbb-green); text-decoration: none; transition: color 0.2s ease; }
+a:hover { color: var(--gbb-green-dark); }
+
+.dashboard-layout { display: flex; flex-direction: row; min-height: 100vh; }
+
+/* --- Vertical sidebar navigation --- */
+.sidebar {
+    width: var(--sidebar-w); flex-shrink: 0; background-color: white;
+    box-shadow: var(--shadow-sm); display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh; z-index: 100;
+}
+.sidebar-brand { display: flex; align-items: center; gap: 0.65rem; padding: 1.25rem 1.25rem 1rem; border-bottom: 1px solid var(--border-color); }
+.sidebar-brand-mark { width: 46px; flex-shrink: 0; }
+.sidebar-brand-mark img { width: 100%; height: auto; display: block; }
+.sidebar-brand-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.sidebar-brand-text strong { color: var(--gbb-green-dark); font-size: 1rem; }
+.sidebar-brand-text span { color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; }
+
+.sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; padding: 1rem 0.9rem; overflow-y: auto; }
+.nav-tab {
+    display: flex; align-items: center; gap: 0.65rem; width: 100%;
+    padding: 0.65rem 0.85rem; border-radius: var(--radius-md);
+    font-size: 0.9rem; font-weight: 500; color: var(--text-secondary);
+    background: transparent; border: 1px solid transparent; cursor: pointer;
+    font-family: inherit; transition: all 0.15s ease; text-align: left;
+}
+.nav-tab svg { flex-shrink: 0; }
+.nav-tab:hover { background: #f0fdf4; color: var(--gbb-green-dark); }
+.nav-tab.active { background: var(--gbb-green); color: white; }
+.nav-tab .count-pill {
+    margin-left: auto; background: #e5e7eb; color: var(--text-secondary); border-radius: 999px;
+    padding: 0.05rem 0.55rem; font-size: 0.72rem; font-weight: 600;
+}
+.nav-tab.active .count-pill { background: rgba(255,255,255,0.25); color: white; }
+
+.sidebar-footer { border-top: 1px solid var(--border-color); padding: 1rem 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.sidebar-footer .user-badge { width: 100%; justify-content: center; }
+.sidebar-footer .btn { width: 100%; }
+
+@media (max-width: 900px) {
+    .dashboard-layout { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; flex-wrap: wrap; padding: 0.5rem; }
+    .sidebar-brand { border-bottom: none; padding: 0.5rem 0.75rem; }
+    .sidebar-nav { flex-direction: row; overflow-x: auto; flex: 1; padding: 0.5rem; }
+    .nav-tab { white-space: nowrap; }
+    .sidebar-footer { flex-direction: row; border-top: none; width: auto; padding: 0.5rem; }
+    .sidebar-footer .btn, .sidebar-footer .user-badge { width: auto; }
+}
+
+.content-wrapper { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.page-header { background: white; padding: 1.5rem 2rem; box-shadow: var(--shadow-sm); }
+.page-header h1 { margin-bottom: 0; font-size: 1.6rem; }
+.page-header .section-welcome { margin-top: 0.35rem; color: var(--text-secondary); font-size: 0.92rem; }
+
+.main-content { padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; flex: 1; }
+.grid-container { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+
+.card {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+.card-title {
+    font-size: 1.25rem;
+    border-bottom: 2px solid #f0fdf4;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.5rem;
+    color: var(--gbb-green);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.card-title-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+.form-group { margin-bottom: 1.25rem; text-align: left; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 640px) { .form-row, .form-row.three { grid-template-columns: 1fr; } }
+.form-label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.5rem; }
+.form-label .req { color: #b91c1c; }
+.form-hint { font-size: 0.78rem; color: var(--text-light); margin-top: 0.35rem; }
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: #f9fafb;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+}
+.form-control:focus {
+    outline: none;
+    border-color: var(--gbb-green);
+    box-shadow: 0 0 0 3px rgba(10, 102, 52, 0.1);
+    background-color: white;
+}
+textarea.form-control { resize: vertical; min-height: 90px; }
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 16px 12px;
+}
+.checkbox-group { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+.checkbox-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); cursor: pointer; }
+.checkbox-label input { width: 1.1rem; height: 1.1rem; accent-color: var(--gbb-green); cursor: pointer; }
+.chip-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chip-label {
+    display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.83rem; color: var(--text-secondary);
+    cursor: pointer; padding: 0.4rem 0.75rem; border: 1px solid var(--border-color); border-radius: 999px; background: #f9fafb;
+}
+.chip-label input { accent-color: var(--gbb-green); }
+.chip-label:has(input:checked) { background: #f0fdf4; border-color: var(--gbb-green-light); color: var(--gbb-green-dark); font-weight: 600; }
+
+.btn {
+    display: inline-block; font-weight: 500; text-align: center; white-space: nowrap;
+    vertical-align: middle; user-select: none; border: 1px solid transparent;
+    padding: 0.75rem 1.5rem; font-size: 1rem; line-height: 1.5; border-radius: var(--radius-md);
+    transition: all 0.2s ease-in-out; cursor: pointer; font-family: inherit; width: 100%;
+}
+.btn-primary { color: #fff; background-color: var(--gbb-green); border-color: var(--gbb-green); }
+.btn-primary:hover { background-color: var(--gbb-green-dark); border-color: var(--gbb-green-dark); box-shadow: var(--shadow-md); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-outline { color: var(--gbb-green); background-color: transparent; border-color: var(--gbb-green); }
+.btn-outline:hover { color: #fff; background-color: var(--gbb-green); }
+.btn-danger-outline { color: #b91c1c; background: transparent; border-color: #fecaca; }
+.btn-danger-outline:hover { color: #fff; background-color: #b91c1c; border-color: #b91c1c; }
+.btn-sm { padding: 0.45rem 0.9rem; font-size: 0.825rem; width: auto; }
+.btn-icon { display: inline-flex; align-items: center; gap: 0.4rem; justify-content: center; }
+.btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.feature-title { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; color: var(--gbb-green); }
+.feature-title svg { width: 22px; height: 22px; stroke-width: 2; color: var(--gbb-green); flex-shrink: 0; }
+
+.alert { padding: 0.75rem 1.25rem; margin-bottom: 1rem; border: 1px solid transparent; border-radius: var(--radius-md); font-size: 0.875rem; display: flex; align-items: center; gap: 0.6rem; }
+.alert-danger { color: #842029; background-color: #f8d7da; border-color: #f5c2c7; }
+.alert-success { color: #0f5132; background-color: #d1e7dd; border-color: #badbcc; }
+.alert-warning { color: var(--amber); background-color: var(--amber-bg); border-color: var(--amber-border); }
+
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table { width: 100%; margin-bottom: 1rem; color: var(--text-primary); border-collapse: separate; border-spacing: 0; }
+.table th, .table td { padding: 0.9rem 1rem; vertical-align: middle; border-bottom: 1px solid var(--border-color); text-align: left; font-size: 0.9rem; }
+.table thead th { vertical-align: bottom; background-color: #f8f9fa; border-bottom: 2px solid var(--border-color); font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+.table tbody tr:hover { background-color: rgba(10, 102, 52, 0.02); }
+.table td.muted { color: var(--text-light); font-style: italic; }
+
+.charts-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-top: 2rem; }
+.chart-box { background: white; padding: 1.5rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); height: 320px; position: relative; }
+.chart-box canvas { width: 100% !important; height: 100% !important; }
+
+.actions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; width: 100%; margin-top: 0; }
+.action-card {
+    width: 100%; min-width: 0; background: white; padding: 1.5rem; border-radius: var(--radius-lg);
+    box-sizing: border-box; text-align: left; transition: 0.3s; box-shadow: var(--shadow-md);
+    display: flex; flex-direction: column; border-left: 4px solid var(--gbb-green);
+}
+.action-card .stat-number { font-size: 2.25rem; font-weight: 700; color: var(--gbb-green-dark); line-height: 1; margin: 0.5rem 0 0.25rem; }
+.action-card .stat-label { color: var(--text-secondary); font-size: 0.85rem; }
+.action-card.amber { border-left-color: #b45309; }
+.action-card.slate { border-left-color: var(--text-light); }
+.action-card.rose { border-left-color: #b91c1c; }
+
+@media (min-width: 768px) { .grid-container { grid-template-columns: 2fr 1fr; } }
+
+/* --- Additions for the visitor app --- */
+.status-badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+.status-badge.in { background: #d1e7dd; color: #0f5132; }
+.status-badge.out { background: #e5e7eb; color: var(--text-secondary); }
+.status-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.search-bar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.search-bar .form-control { max-width: 320px; }
+
+.sig-wrap { border: 1px dashed var(--border-color); border-radius: var(--radius-md); background: #f9fafb; overflow: hidden; }
+.sig-wrap canvas { display: block; width: 100%; height: 140px; touch-action: none; cursor: crosshair; background: white; }
+.sig-actions { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; }
+.sig-hint { font-size: 0.78rem; color: var(--text-light); }
+.sig-clear-btn { background: none; border: none; color: var(--gbb-green); font-size: 0.8rem; font-weight: 500; cursor: pointer; font-family: inherit; }
+.sig-clear-btn:hover { color: var(--gbb-green-dark); text-decoration: underline; }
+
+.sig-thumb { height: 32px; border-radius: 4px; border: 1px solid var(--border-color); background: white; cursor: zoom-in; }
+.sig-none { color: var(--text-light); font-size: 0.8rem; }
+
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: none;
+    align-items: center; justify-content: center; z-index: 1000; padding: 1rem;
+}
+.modal-overlay.open { display: flex; }
+.modal-box { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); max-width: 480px; width: 100%; padding: 1.75rem; max-height: 90vh; overflow-y: auto; }
+.modal-box.wide { max-width: 640px; }
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+.modal-close { background: none; border: none; cursor: pointer; color: var(--text-light); font-size: 1.4rem; line-height: 1; padding: 0 0.25rem; }
+.modal-close:hover { color: var(--text-primary); }
+.modal-summary { background: #f9fafb; border-radius: var(--radius-md); padding: 0.9rem 1rem; margin-bottom: 1.25rem; font-size: 0.88rem; color: var(--text-secondary); }
+.modal-summary strong { color: var(--text-primary); }
+.modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+
+.device-confirm-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem; }
+.device-confirm-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #f9fafb; font-size: 0.88rem; }
+.device-confirm-item input { width: 1.15rem; height: 1.15rem; accent-color: var(--gbb-green); flex-shrink: 0; }
+.device-confirm-item .device-name { font-weight: 500; color: var(--text-primary); }
+.device-confirm-item .device-sub { color: var(--text-light); font-size: 0.78rem; }
+
+.toolbar-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.toolbar-row p { color: var(--text-secondary); margin: 0; }
+
+.footer-note { text-align: center; color: var(--text-light); font-size: 0.8rem; padding: 1.5rem; }
+.footer-note strong { color: var(--text-secondary); }
+
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gbb-green-light); display: inline-block; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+.sync-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: var(--text-light); }
+
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-light); }
+.empty-state svg { width: 40px; height: 40px; margin-bottom: 0.75rem; color: var(--border-color); }
+
+::-webkit-scrollbar { height: 8px; width: 8px; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+.auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f0fdf4,#ffffff);padding:1.5rem}
+.auth-card{width:100%;max-width:460px;background:#fff;border-radius:1rem;box-shadow:var(--shadow-lg);padding:2rem}
+.auth-brand{text-align:center;margin-bottom:1.75rem}
+.auth-brand-mark{margin:0 auto .9rem;width:200px;max-width:70%}
+.auth-brand-mark img{width:100%;height:auto;display:block}
+.auth-title{margin-bottom:.35rem;text-align:center}
+.auth-subtitle{text-align:center;color:var(--text-secondary);margin-bottom:1.5rem;font-size:1.2rem;font-weight:500}
+.user-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .7rem;border-radius:999px;background:#f0fdf4;color:var(--gbb-green-dark);font-size:.8rem;font-weight:600}
+.hidden{display:none!important}
+.pending-row{background:#fffbeb}.approved-row{background:#f0fdf4}.rejected-row{background:#fef2f2}
+.status-badge.pending{background:#fef3c7;color:#92400e}.status-badge.approved{background:#dcfce7;color:#166534}
+.status-badge.checked-in{background:#d1e7dd;color:#0f5132}.status-badge.checked-out{background:#e5e7eb;color:#4b5563}
+.status-badge.rejected{background:#fee2e2;color:#991b1b}
+.user-area{display:flex;align-items:center;gap:.75rem}
+
+
+/* --- Role-specific views --- */
+.staff-only { }
+.staff-stats-note { color:var(--text-secondary); margin-bottom:1.25rem; }
+.device-checks { display:flex; flex-wrap:wrap; gap:1rem; margin-top:.25rem; }
+.device-checks .checkbox-label { padding:.55rem .8rem; border:1px solid var(--border-color); border-radius:var(--radius-md); background:#f9fafb; }
+.rejection-reason { font-size:.82rem; color:var(--text-secondary); max-width:220px; white-space:normal; }
+
+.recent-list-item { display:flex; justify-content:space-between; align-items:center; padding:.6rem 0; border-bottom:1px solid var(--border-color); gap:1rem; }
+.recent-list-item:last-child { border-bottom:none; }
+.recent-list-item .name { font-weight:500; font-size:.9rem; }
+.recent-list-item .sub { font-size:.78rem; color:var(--text-light); }
+
+.psp-return-button{display:block;margin:8px 12px 16px;padding:12px;border-radius:8px;background:#0a6634;color:#fff;text-decoration:none;font-size:14px;font-weight:600}.psp-return-button:focus-visible{outline:3px solid #d2a64b;outline-offset:3px}.sidebar-brand{flex-direction:column;align-items:flex-start}.sidebar-brand-mark{width:140px;max-width:100%}.sidebar-brand-mark img{height:auto;object-fit:contain}</style>
+</head>
+<body>
+
+
+<div id="authScreen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="auth-brand-mark">
+        <img src="{{url_for('static', filename='gbb-logo.jpg')}}" alt="Galaxy Backbone">
+      </div>
+      <p class="auth-subtitle">Visitor Management System</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="dashboard-layout" id="appShell" style="display:none;">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-mark"><img src="{{url_for('static', filename='gbb-logo.jpg')}}" alt="Galaxy Backbone"></div>
+      <div class="sidebar-brand-text">
+        <strong>Visitor Management</strong>
+        <span>Physical Security Portal</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" id="navTabs">
+      <a class="psp-return-button" href="/dashboard">← Back to PSP Dashboard</a>
+      <button class="nav-tab non-staff-nav" data-tab="dashboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard
+      </button>
+
+      <button class="nav-tab staff-only hidden" data-tab="staff-dashboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Dashboard
+      </button>
+
+      <button class="nav-tab admin-only" data-tab="approvals">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Pending Approvals <span class="count-pill" id="pendingPill">0</span>
+      </button>
+      <button class="nav-tab" data-tab="signin">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+        Sign In Visitor
+      </button>
+      <button class="nav-tab approved-only hidden" data-tab="approved">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>
+        Approved <span class="count-pill" id="approvedPill">0</span>
+      </button>
+      <button class="nav-tab admin-only" data-tab="rejected">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+        Rejected <span class="count-pill" id="rejectedPill">0</span>
+      </button>
+      <button class="nav-tab staff-only hidden" data-tab="staff-log">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+        Staff Log
+      </button>
+      <button class="nav-tab" data-tab="onsite">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>
+        On-Site <span class="count-pill" id="onsitePill">0</span>
+      </button>
+      <button class="nav-tab" data-tab="log">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+        Full Log
+      </button>
+      <button class="nav-tab reports-only hidden" data-tab="reports">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        Reports
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <span class="user-badge" id="currentUserBadge">Guest</span>
+    </div>
+  </aside>
+
+  <div class="content-wrapper">
+
+    <header class="page-header">
+      <h1 id="sectionTitle">Dashboard</h1>
+      <p class="section-welcome hidden" id="sectionWelcome"></p>
+    </header>
+
+    <div class="main-content">
+
+    <div id="alertHost"></div>
+
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="tab-panel">
+      <div class="toolbar-row">
+        <span></span>
+        <span class="sync-status"><span class="sync-dot"></span> Synced across all devices</span>
+      </div>
+
+      <div class="actions-grid">
+        <div class="action-card amber">
+          <div class="feature-title" style="color:#b45309;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="color:#b45309;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Pending Approval
+          </div>
+          <div class="stat-number" style="color:#b45309;" id="statPending">0</div>
+          <div class="stat-label">Requests awaiting approval</div>
+        </div>
+        <div class="action-card">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 2.5 2.5L16 9"/></svg>
+            Approved
+          </div>
+          <div class="stat-number" id="statApproved">0</div>
+          <div class="stat-label">Approved requests not yet checked in</div>
+        </div>
+        <div class="action-card">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>
+            Checked in today
+          </div>
+          <div class="stat-number" id="statCheckedInToday">0</div>
+          <div class="stat-label">Visitors checked in today</div>
+        </div>
+        <div class="action-card slate">
+          <div class="feature-title" style="color:var(--text-secondary);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-secondary);"><path d="m18 15-6-6-6 6"/></svg>
+            Checked out today
+          </div>
+          <div class="stat-number" style="color:var(--text-secondary);" id="statOutToday">0</div>
+          <div class="stat-label">Completed visits today</div>
+        </div>
+      </div>
+
+      <div class="charts-dashboard">
+        <div class="chart-box">
+          <canvas id="weekChart"></canvas>
+        </div>
+        <div class="card" style="margin-bottom:0; height:320px; display:flex; flex-direction:column;">
+          <div class="card-title" style="margin-bottom:1rem;">Top 10 recent requests</div>
+          <div id="recentActivity" style="overflow-y:auto; flex:1;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SIGN IN -->
+    <section id="tab-signin" class="tab-panel" style="display:none;">
+      <div class="card" style="max-width:720px; margin:0 auto;">
+        <div class="card-title">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+            Sign-In Visitor
+          </div>
+        </div>
+        <form id="signInForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Number of guests <span class="req">*</span></label>
+              <input type="number" class="form-control" id="f_guestCount" min="1" max="20" value="1" required>
+              <div class="form-hint">A name field appears for each guest in the party.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone number <span class="req">*</span></label>
+              <input type="tel" class="form-control" id="f_phone" required autocomplete="off">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Guest name(s) <span class="req">*</span></label>
+            <div id="guestNamesContainer"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Address / Organization <span class="req">*</span></label>
+            <input type="text" class="form-control" id="f_addressOrg" required autocomplete="off">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Whom to see <span class="req">*</span></label>
+              <input type="text" class="form-control" id="f_toSee" required autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Floor <span class="req">*</span></label>
+              <select class="form-control" id="f_floor" required>
+                <option value="">Select floor</option>
+                <option value="Wing A">Wing A</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="GF">GF</option>
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                <option value="4">4</option><option value="5">5</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Department <span class="req">*</span></label>
+            <input type="text" class="form-control" id="f_department" required autocomplete="off">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Purpose of visit <span class="req">*</span></label>
+            <input type="text" class="form-control" id="f_purpose" required autocomplete="off" placeholder="e.g. Meeting, Delivery, Interview, Maintenance">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Guest names document (optional)</label>
+            <input type="file" class="form-control" id="f_guestDocument" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">
+            <div class="form-hint">Attach a guest list for larger parties. Maximum upload size is 10 MB.</div>
+          </div>
+          <div class="form-group" style="padding:12px;background:#f8fafc;border-radius:10px;">
+            <label><input type="checkbox" id="notifyEveryAction"> Email me about every action on this request</label><br>
+            <label><input type="checkbox" id="notifyStatusChange" checked> Notify me when the request is approved, rejected or its status changes</label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Submit request
+          </button>
+        </form>
+      </div>
+    </section>
+
+
+    <!-- PENDING APPROVALS -->
+    <section id="tab-approvals" class="tab-panel admin-only" style="display:none;">
+      <div class="card">
+        <div class="card-title">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Pending Approvals
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Visitor</th><th>Organization</th><th>Whom to see</th><th>Purpose</th><th>Floor</th><th>Department</th><th>Request email</th><th>Action</th></tr></thead>
+            <tbody id="approvalTbody"></tbody>
+          </table>
+        </div>
+        <div id="approvalEmpty" class="empty-state" style="display:none;">No pending approval requests.</div>
+      </div>
+    </section>
+
+    <!-- APPROVED REQUESTS -->
+    <section id="tab-approved" class="tab-panel approved-only hidden" style="display:none;">
+      <div class="card">
+        <div class="card-title">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>
+            Approved Requests
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Visitor</th><th>Organization</th><th>Whom to see</th><th>Purpose</th><th>Floor</th><th>Department</th><th>Approval code</th><th>Approved</th><th>Action</th></tr></thead>
+            <tbody id="approvedTbody"></tbody>
+          </table>
+        </div>
+        <div id="approvedEmpty" class="empty-state" style="display:none;">No approved requests awaiting check-in.</div>
+      </div>
+    </section>
+
+    <!-- REJECTED REQUESTS (Admin only) -->
+    <section id="tab-rejected" class="tab-panel admin-only" style="display:none;">
+      <div class="card">
+        <div class="card-title">
+          <div class="feature-title" style="color:#b91c1c;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="color:#b91c1c;"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+            Rejected Requests
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Visitor</th><th>Organization</th><th>Whom to see</th><th>Purpose</th><th>Floor</th><th>Department</th><th>Rejected by</th><th>Rejected</th><th>Reason</th></tr></thead>
+            <tbody id="rejectedTbody"></tbody>
+          </table>
+        </div>
+        <div id="rejectedEmpty" class="empty-state" style="display:none;">No rejected requests.</div>
+      </div>
+    </section>
+
+    <!-- STAFF DASHBOARD -->
+    <section id="tab-staff-dashboard" class="tab-panel staff-only" style="display:none;">
+      <div class="toolbar-row">
+        <p>Requests submitted by you and visitors directed to you or your office.</p>
+      </div>
+      <div class="actions-grid">
+        <div class="action-card amber">
+          <div class="feature-title" style="color:#b45309;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="color:#b45309;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Pending Approval
+          </div>
+          <div class="stat-number" style="color:#b45309;" id="staffStatPending">0</div>
+          <div class="stat-label">Your visitor requests awaiting approval</div>
+        </div>
+        <div class="action-card">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 2.5 2.5L16 9"/></svg>
+            Approved Requests
+          </div>
+          <div class="stat-number" id="staffStatApproved">0</div>
+          <div class="stat-label">Approved visitors not yet checked in</div>
+        </div>
+        <div class="action-card">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>
+            Visitors checked in
+          </div>
+          <div class="stat-number" id="staffStatCheckedIn">0</div>
+          <div class="stat-label">Your visitors currently checked in today</div>
+        </div>
+        <div class="action-card slate">
+          <div class="feature-title" style="color:var(--text-secondary);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-secondary);"><path d="m18 15-6-6-6 6"/></svg>
+            Visitors checked out
+          </div>
+          <div class="stat-number" style="color:var(--text-secondary);" id="staffStatCheckedOut">0</div>
+          <div class="stat-label">Your visitors checked out today</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:2rem;">
+        <div class="card-title">Top 10 recent requests</div>
+        <div id="staffRecentActivity"></div>
+      </div>
+    </section>
+
+    <!-- STAFF LOG -->
+    <section id="tab-staff-log" class="tab-panel staff-only" style="display:none;">
+      <div class="card">
+        <div class="card-title">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+            Staff Visitor Log
+          </div>
+        </div>
+        <div class="search-bar">
+          <input type="text" class="form-control" id="staffLogSearch" placeholder="Search by visitor, tag no., host or organization...">
+          <select class="form-control" id="staffLogFilter" style="max-width:180px;">
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="checked_in">Checked in</option>
+            <option value="checked_out">Checked out</option>
+          </select>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Visitor</th><th>Organization</th><th>Whom to see</th><th>Purpose</th><th>Floor</th><th>Department</th><th>Approval code</th><th>Tag no.</th><th>Time in</th><th>Time out</th><th>Status</th></tr></thead>
+            <tbody id="staffLogTbody"></tbody>
+          </table>
+        </div>
+        <div id="staffLogEmpty" class="empty-state" style="display:none;">No visitor records connected to your requests or host details.</div>
+      </div>
+    </section>
+
+    <!-- ON SITE -->
+    <section id="tab-onsite" class="tab-panel" style="display:none;">
+      <div class="card">
+        <div class="card-title">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>
+            Visitors checked in today
+          </div>
+        </div>
+        <div class="search-bar">
+          <input type="text" class="form-control" id="onsiteSearch" placeholder="Search by name, tag no. or host...">
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Visitor</th><th>Organization</th><th>Phone</th><th>Whom to see</th>
+                <th>Purpose</th><th>Floor</th><th>Device</th><th>Approval code</th><th>Tag no.</th><th>Time in</th><th>Status</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="onsiteTbody"></tbody>
+          </table>
+        </div>
+        <div id="onsiteEmpty" class="empty-state" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          <div>No visitors checked in today.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOG -->
+    <section id="tab-log" class="tab-panel" style="display:none;">
+      <div class="card">
+        <div class="card-title">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+            Full visitor log
+          </div>
+          <div class="card-title-actions">
+            <button class="btn btn-outline btn-sm" id="exportCsvBtn">Export CSV</button>
+            <button class="btn btn-danger-outline btn-sm" id="clearAllBtn">Clear all data</button>
+          </div>
+        </div>
+        <div class="search-bar">
+          <input type="text" class="form-control" id="logSearch" placeholder="Search by name, tag no., host or organization...">
+          <select class="form-control" id="logFilter" style="max-width:180px;">
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="checked_in">Checked in</option>
+            <option value="checked_out">Checked out</option>
+          </select>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Visitor</th><th>Organization</th><th>Whom to see</th><th>Purpose</th><th>Approval code</th>
+                <th>Tag no.</th><th>Floor</th><th>Department</th><th>Time in</th><th>Time out</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="logTbody"></tbody>
+          </table>
+        </div>
+        <div id="logEmpty" class="empty-state" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+          <div>No visitor records yet.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS (Admin + Physical Security) -->
+    <section id="tab-reports" class="tab-panel reports-only hidden" style="display:none;">
+      <div class="card">
+        <div class="card-title">
+          <div class="feature-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+            Security &amp; Visit Reports
+          </div>
+        </div>
+        <p class="form-hint" style="margin-bottom:1.25rem;">Build a report of visitor check-ins with tag numbers, devices carried, and the security personnel who processed each visitor. Combine filters to narrow the range — e.g. only Mondays over the past few weeks, or only the second week of each of the past few months.</p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">From date</label>
+            <input type="date" class="form-control" id="reportFrom">
+          </div>
+          <div class="form-group">
+            <label class="form-label">To date</label>
+            <input type="date" class="form-control" id="reportTo">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Hour from (check-in time)</label>
+            <select class="form-control" id="reportHourFrom"><option value="">Any</option></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hour to (check-in time)</label>
+            <select class="form-control" id="reportHourTo"><option value="">Any</option></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Only these days of the week</label>
+          <div class="chip-group" id="reportDaysGroup">
+            <label class="chip-label"><input type="checkbox" class="report-day" value="1"> Mon</label>
+            <label class="chip-label"><input type="checkbox" class="report-day" value="2"> Tue</label>
+            <label class="chip-label"><input type="checkbox" class="report-day" value="3"> Wed</label>
+            <label class="chip-label"><input type="checkbox" class="report-day" value="4"> Thu</label>
+            <label class="chip-label"><input type="checkbox" class="report-day" value="5"> Fri</label>
+            <label class="chip-label"><input type="checkbox" class="report-day" value="6"> Sat</label>
+            <label class="chip-label"><input type="checkbox" class="report-day" value="0"> Sun</label>
+          </div>
+          <div class="form-hint">Leave all unchecked to include every day. Tick just Monday, for example, to see only Mondays within the date range.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Only these weeks of the month</label>
+          <div class="chip-group" id="reportWeeksGroup">
+            <label class="chip-label"><input type="checkbox" class="report-week" value="1"> 1st week</label>
+            <label class="chip-label"><input type="checkbox" class="report-week" value="2"> 2nd week</label>
+            <label class="chip-label"><input type="checkbox" class="report-week" value="3"> 3rd week</label>
+            <label class="chip-label"><input type="checkbox" class="report-week" value="4"> 4th week</label>
+            <label class="chip-label"><input type="checkbox" class="report-week" value="5"> 5th week</label>
+          </div>
+          <div class="form-hint">Leave all unchecked to include every week. Tick the 2nd week, for example, to see only days 8–14 of each month in range.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Include visit status</label>
+          <div class="checkbox-group">
+            <label class="checkbox-label"><input type="checkbox" id="reportIncludeOnsite" checked> Currently checked in</label>
+            <label class="checkbox-label"><input type="checkbox" id="reportIncludeOut" checked> Checked out</label>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary btn-icon" id="generateReportBtn" style="width:auto;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+            Generate reports
+          </button>
+          <button class="btn btn-outline btn-sm" id="exportReportCsvBtn">Export CSV</button>
+        </div>
+      </div>
+
+      <div class="card"><div class="card-title">Report charts</div><div id="vmsReportCharts">Generate reports to see charts.</div></div>
+      <div class="card">
+        <div class="card-title">
+          <span>Full report</span>
+          <span class="form-hint" id="reportCount" style="margin:0;">Not generated yet</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Visitor</th><th>Approval code</th><th>Tag no.</th><th>Floor</th><th>Devices carried</th><th>Checked in by</th><th>Checked out by</th><th>Time in</th><th>Time out</th><th>Status</th></tr></thead>
+            <tbody id="reportTbody"></tbody>
+          </table>
+        </div>
+        <div id="reportEmpty" class="empty-state">Set your filters above and generate a report.</div>
+      </div>
+    </section>
+
+    </div>
+
+    <div class="footer-note">Visitor records are managed through the Visitor Management REST API and synchronized across authorized users.</div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="groupCheckInModal"><div class="modal-box"><div class="modal-header"><h3 style="margin:0">Select visitors to check in</h3><button class="modal-close" onclick="closeGroupCheckIn()">&times;</button></div><div id="groupCheckInNames" class="device-confirm-list"></div><div class="form-group"><label class="form-label">Tag assignment</label><select class="form-control" id="groupTagMode"><option value="shared">One tag for all selected visitors</option><option value="individual">A separate tag for each visitor</option></select></div><div class="form-group" id="sharedTagWrap"><label class="form-label">Shared tag number</label><select class="form-control" id="sharedGroupTag"></select></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeGroupCheckIn()">Cancel</button><button class="btn btn-primary" id="confirmGroupCheckIn">Check in selected</button></div></div></div>
+<div class="modal-overlay" id="checkInModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 style="margin-bottom:0;">Check visitor in</h3>
+      <button class="modal-close" id="closeCheckInModal">&times;</button>
+    </div>
+    <div class="modal-summary" id="checkInSummary"></div>
+    <div class="form-group">
+      <label class="form-label">Tag no. <span class="req">*</span></label>
+      <select class="form-control" id="checkInTagNo" required></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Visitor carrying a laptop or other device</label>
+      <div class="device-checks">
+        <label class="checkbox-label"><input type="checkbox" id="checkInLaptop"> Laptop</label>
+        <label class="checkbox-label"><input type="checkbox" id="checkInOtherDevice"> Other device</label>
+      </div>
+    </div>
+    <div class="form-group hidden" id="laptopDetailsGroup">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Quantity <span class="req">*</span></label>
+          <input type="number" class="form-control" id="checkInLaptopQty" min="1" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Model <span class="req">*</span></label>
+          <input type="text" class="form-control" id="checkInLaptopModel" placeholder="e.g. Dell Latitude 5420">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">Laptop detail</label>
+        <input type="text" class="form-control" id="checkInLaptopDetail" placeholder="e.g. serial number, color, visible marks">
+      </div>
+    </div>
+    <div class="form-group hidden" id="otherDeviceGroup">
+      <label class="form-label">Other device details <span class="req">*</span></label>
+      <input type="text" class="form-control" id="checkInDeviceInfo" placeholder="Enter the other device carried by the visitor">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="cancelCheckIn">Cancel</button>
+      <button class="btn btn-primary" id="confirmCheckIn">Check in</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIGN OUT MODAL (Security) -->
+<div class="modal-overlay" id="signOutModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 style="margin-bottom:0;">Sign visitor out</h3>
+      <button class="modal-close" id="closeSignOutModal">&times;</button>
+    </div>
+    <div class="modal-summary" id="signOutSummary"></div>
+    <label class="form-label">Devices the visitor arrived with</label>
+    <div class="device-confirm-list" id="signOutDeviceList"></div>
+    <label class="form-label">Visitor signature (sign out) <span class="req">*</span></label>
+    <div class="sig-wrap">
+      <canvas id="sigCanvasOut"></canvas>
+      <div class="sig-actions">
+        <span class="sig-hint">Draw with mouse or finger</span>
+        <button type="button" class="sig-clear-btn" id="clearSigOut">Clear</button>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Comment (optional)</label><textarea class="form-control" id="signOutComment" rows="3" placeholder="Add an optional sign-out note"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="cancelSignOut">Cancel</button>
+      <button class="btn btn-primary" id="confirmSignOut">Confirm sign out</button>
+    </div>
+  </div>
+</div>
+
+<!-- REJECT MODAL (Admin) -->
+<div class="modal-overlay" id="requestDetailModal">
+  <div class="modal-box"><div class="modal-header"><h3 style="margin:0">Submitted request</h3><button class="modal-close" onclick="document.getElementById('requestDetailModal').classList.remove('open')">&times;</button></div><div id="requestDetailBody" class="modal-summary"></div></div>
+</div>
+<div class="modal-overlay" id="rejectModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 style="margin-bottom:0;">Reject request</h3>
+      <button class="modal-close" id="closeRejectModal">&times;</button>
+    </div>
+    <div class="modal-summary" id="rejectSummary"></div>
+    <div class="form-group">
+      <label class="form-label">Comment <span class="req">*</span></label>
+      <textarea class="form-control" id="rejectReason" placeholder="Enter the reason for rejecting this request"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" id="cancelReject">Cancel</button>
+      <button class="btn btn-danger-outline" id="confirmReject" style="color:#fff;background:#b91c1c;border-color:#b91c1c;">Reject request</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIGNATURE VIEW MODAL -->
+<div class="modal-overlay" id="viewSigModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 style="margin-bottom:0;" id="viewSigTitle">Signature</h3>
+      <button class="modal-close" id="closeViewSigModal">&times;</button>
+    </div>
+    <img id="viewSigImg" style="width:100%; border:1px solid var(--border-color); border-radius:8px;">
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+
+<script>
+let visitors = [];
+let weekChart = null;
+let pendingSignOutId = null;
+let pendingCheckInId = null;
+let checkInQueue = []; // remaining visitor ids still to check in when processing a whole party
+let checkInGroupTotal = 0;
+let checkInGroupIndex = 0;
+let pendingRejectId = null;
+let reportRows = [];
+let currentUser = {{user|tojson}};
+
+
+
+const SECTION_TITLES = {
+  'dashboard':'Dashboard', 'staff-dashboard':'Dashboard', 'approvals':'Pending Approvals',
+  'approved':'Approved Requests', 'rejected':'Rejected Requests', 'signin':'Sign In Visitor',
+  'staff-log':'Staff Log', 'onsite':'On-Site', 'log':'Full Log', 'reports':'Generate reports'
+};
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function fmtDateTime(iso){if(!iso)return '—';return new Date(iso).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+function fmtTime(iso){if(!iso)return '—';return new Date(iso).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}
+function isToday(iso){if(!iso)return false;return new Date(iso).toDateString()===new Date().toDateString()}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showAlert(message,type){const host=document.getElementById('alertHost');const div=document.createElement('div');div.className='alert alert-'+type;div.textContent=message;host.innerHTML='';host.appendChild(div);setTimeout(()=>div.remove(),4500)}
+function can(group){return currentUser && currentUser.group===group}
+
+/* Run a render function without letting a UI-only bug bubble up into an
+   action's try/catch (which would otherwise show a false "action failed"
+   alert even though the underlying request succeeded). */
+function safeRender(fn){
+  try{fn();}catch(err){console.error('Render error (safely ignored):',err);}
+}
+function refreshAllViews(){
+  safeRender(updateNavCounts);
+  safeRender(renderDashboard);
+  if(can('Staff')){safeRender(renderStaffDashboard);safeRender(renderStaffLog);}
+  safeRender(renderApprovals);
+  safeRender(renderApproved);
+  safeRender(renderRejected);
+  safeRender(renderOnSite);
+  safeRender(renderLog);
+}
+
+/* Guests who sign in together share a groupId so they can be shown and
+   approved/rejected as a single request. Records without one (legacy data)
+   are treated as their own group of one. */
+function groupByRequest(rows){
+  const map=new Map();
+  const order=[];
+  for(const v of rows){
+    const key=v.groupId||v.id;
+    if(!map.has(key)){map.set(key,[]);order.push(key);}
+    map.get(key).push(v);
+  }
+  return order.map(key=>{
+    const members=map.get(key).slice().sort((a,b)=>String(a.fullName||'').localeCompare(String(b.fullName||'')));
+    const primary=map.get(key).slice().sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0))[0];
+    return {key,members,primary,names:members.map(m=>m.fullName).join(', ')};
+  });
+}
+function idsForGroupKey(key){
+  return visitors.filter(v=>(v.groupId||v.id)===key).map(v=>v.id);
+}
+
+const API_BASE = ''; // Keep empty when the frontend and backend share the same origin.
+function canAny(...groups){return currentUser && groups.includes(currentUser.group)}
+function canCheckIn(){return canAny('Admin','Physical Security')}
+function canCheckOut(){return canAny('Admin','Physical Security')}
+function canSignVisitor(){return canAny('Admin','Physical Security','Staff')}
+function deviceSummary(v){
+  const parts=[];
+  if(v.laptop){
+    let label='Laptop';
+    if(v.laptopQuantity)label+=` x${v.laptopQuantity}`;
+    if(v.laptopModel)label+=` (${v.laptopModel})`;
+    parts.push(label);
+  }
+  if(v.otherDevice)parts.push(v.otherDeviceDetails?v.otherDeviceDetails:'Other device');
+  return parts.length?parts.join(', '):'No devices';
+}
+function statusLabel(s){
+  return {pending:'Pending',approved:'Approved',rejected:'Rejected',checked_in:'Checked in',checked_out:'Checked out'}[s]||s;
+}
+function statusBadge(s){
+  const cls=s==='checked_in'?'checked-in':s==='checked_out'?'checked-out':s;
+  return `<span class="status-badge ${cls}"><span class="dot"></span>${statusLabel(s)}</span>`;
+}
+
+function apiHeaders(json=false){
+  const headers={Accept:'application/json'};
+  if(json)headers['Content-Type']='application/json';
+  if(currentUser){
+    headers['X-CSRF-Token']=PSP_CSRF;
+    
+  }
+  return headers;
+}
+
+async function apiRequest(url,options={}){
+  const response=await fetch(API_BASE+url,{...options,headers:{...apiHeaders(Boolean(options.body)),...(options.headers||{})}});
+  let data=null;
+  try{data=await response.json();}catch(_){}
+  if(!response.ok){
+    throw new Error(data?.message||`Request failed (${response.status})`);
+  }
+  return data;
+}
+
+async function loadVisitors(){
+  if(!currentUser){visitors=[];return visitors;}
+  try{
+    const data=await apiRequest('/api/visitors');
+    visitors=Array.isArray(data)?data:(data.visitors||[]);
+  }catch(e){
+    console.error('Could not load visitor records:',e);
+    showAlert('Could not load visitor records from the server: '+(e.message||'Unknown error'),'danger');
+    visitors=[];
+  }
+  return visitors;
+}
+
+async function persistVisitor(record){
+  // Do not add the record to the UI until the database confirms the insert.
+  const data=await apiRequest('/api/visitors',{
+    method:'POST',
+    body:JSON.stringify(record)
+  });
+  return data.visitor||data;
+}
+
+async function updateVisitor(id,changes){
+  // Server is the source of truth: update local state only after PATCH succeeds.
+  const data=await apiRequest('/api/visitors/'+encodeURIComponent(id),{
+    method:'PATCH',
+    body:JSON.stringify(changes)
+  });
+  const saved=data.visitor||data;if(data.emailSent!==undefined)saved._emailSent=data.emailSent;
+  const idx=visitors.findIndex(v=>v.id===id);
+  if(idx>=0 && saved && saved.id)visitors[idx]=saved;
+  return saved||true;
+}
+
+async function rejectVisitorRequest(id,reason){
+  const data=await apiRequest('/api/visitors/'+encodeURIComponent(id)+'/reject',{
+    method:'PATCH',
+    body:JSON.stringify({reason})
+  });
+  const saved=data.visitor||data;
+  const idx=visitors.findIndex(v=>v.id===id);
+  if(idx>=0 && saved && saved.id)visitors[idx]=saved;
+  return saved;
+}
+
+async function checkInVisitor(id,payload){
+  const data=await apiRequest('/api/visitors/'+encodeURIComponent(id)+'/check-in',{
+    method:'PATCH',
+    body:JSON.stringify(payload)
+  });
+  const saved=data.visitor||data;
+  const idx=visitors.findIndex(v=>v.id===id);
+  if(idx>=0 && saved && saved.id)visitors[idx]=saved;
+  return saved;
+}
+
+async function checkOutVisitor(id,payload){
+  const data=await apiRequest('/api/visitors/'+encodeURIComponent(id)+'/check-out',{
+    method:'PATCH',
+    body:JSON.stringify(payload||{})
+  });
+  const saved=data.visitor||data;
+  const idx=visitors.findIndex(v=>v.id===id);
+  if(idx>=0 && saved && saved.id)visitors[idx]=saved;
+  return saved;
+}
+
+function staffRecordMatch(v){return currentUser && v.requestEmail===currentUser.email;}
+
+function getStaffRecords(){
+  return visitors.filter(staffRecordMatch);
+}
+
+function populateTagOptions(excludeVisitorId){
+  const select=document.getElementById('checkInTagNo');
+  if(!select)return;
+  const currentValue=select.value;
+  // A tag stays reserved for as long as its visitor is status "checked_in";
+  // it becomes available again the moment they're signed out.
+  const takenTags=new Set(
+    visitors.filter(v=>v.status==='checked_in'&&v.id!==excludeVisitorId&&v.tagNo!==''&&v.tagNo!=null)
+      .map(v=>String(v.tagNo))
+  );
+  select.innerHTML='<option value="">Select tag no.</option>'+Array.from({length:101},(_,i)=>{
+    const taken=takenTags.has(String(i));
+    return `<option value="${i}"${taken?' disabled':''}>${i}${taken?' — in use':''}</option>`;
+  }).join('');
+  if(currentValue && !takenTags.has(currentValue))select.value=currentValue;
+}
+populateTagOptions();
+
+function populateReportHourOptions(){
+  const from=document.getElementById('reportHourFrom'), to=document.getElementById('reportHourTo');
+  if(!from||!to)return;
+  for(let h=0;h<24;h++){
+    const label=(h%12===0?12:h%12)+(h<12?' AM':' PM');
+    from.insertAdjacentHTML('beforeend',`<option value="${h}">${label}</option>`);
+    to.insertAdjacentHTML('beforeend',`<option value="${h}">${label}</option>`);
+  }
+}
+populateReportHourOptions();
+
+document.getElementById('checkInOtherDevice').addEventListener('change',()=>{
+  const checked=document.getElementById('checkInOtherDevice').checked;
+  document.getElementById('otherDeviceGroup').classList.toggle('hidden',!checked);
+  if(!checked)document.getElementById('checkInDeviceInfo').value='';
+});
+document.getElementById('checkInLaptop').addEventListener('change',()=>{
+  const checked=document.getElementById('checkInLaptop').checked;
+  document.getElementById('laptopDetailsGroup').classList.toggle('hidden',!checked);
+  if(!checked){
+    document.getElementById('checkInLaptopQty').value=1;
+    document.getElementById('checkInLaptopModel').value='';
+    document.getElementById('checkInLaptopDetail').value='';
+  }
+});
+
+/* Sign-in form: one name field per guest */
+function renderGuestNameFields(){
+  const count=Math.max(1,Math.min(20,Number(document.getElementById('f_guestCount').value)||1));
+  const container=document.getElementById('guestNamesContainer');
+  const existing=[...container.querySelectorAll('.guest-name-input')].map(i=>i.value);
+  container.innerHTML=Array.from({length:count},(_,i)=>`<input type="text" class="form-control guest-name-input" style="margin-bottom:.6rem;" placeholder="Guest ${i+1} full name" value="${escapeHtml(existing[i]||'')}" required autocomplete="off">`).join('');
+}
+document.getElementById('f_guestCount').addEventListener('input',renderGuestNameFields);
+renderGuestNameFields();
+
+/* Time-of-day welcome message for the dashboard header */
+function getWelcomeMessage(){
+  const h=new Date().getHours();
+  if(h>=5&&h<12)return "Good morning — here's your visitors' view so far.";
+  if(h>=12&&h<17)return "Good afternoon — the day in visitors, at a glance.";
+  if(h>=17&&h<21)return "Good evening — wrapping up today's visitor activity.";
+  return "Burning the midnight oil — here's tonight's visitor snapshot.";
+}
+
+function switchTab(tab){
+  if(tab==='approvals'&&!can('Admin'))return;
+  if(tab==='rejected'&&!can('Admin'))return;
+  if(tab==='approved'&&!canAny('Admin','Physical Security'))return;
+  if(tab==='staff-dashboard'&&!can('Staff'))return;
+  if(tab==='staff-log'&&!can('Staff'))return;
+  if(tab==='signin'&&!canSignVisitor())return;
+  if(tab==='onsite'&&!canAny('Admin','Physical Security','Reception'))return;
+  if(tab==='log'&&!canAny('Admin','Reception','Physical Security'))return;
+  if(tab==='reports'&&!canAny('Admin','Physical Security'))return;
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+  const panel=document.getElementById('tab-'+tab);if(panel)panel.style.display='block';
+
+  document.getElementById('sectionTitle').textContent=SECTION_TITLES[tab]||tab;
+  const welcomeEl=document.getElementById('sectionWelcome');
+  if(tab==='dashboard'||tab==='staff-dashboard'){
+    welcomeEl.textContent=getWelcomeMessage();
+    welcomeEl.classList.remove('hidden');
+  }else{
+    welcomeEl.classList.add('hidden');
+  }
+
+  if(tab==='dashboard')renderDashboard();
+  if(tab==='staff-dashboard')renderStaffDashboard();
+  if(tab==='staff-log')renderStaffLog();
+  if(tab==='approvals')renderApprovals();
+  if(tab==='approved')renderApproved();
+  if(tab==='rejected')renderRejected();
+  if(tab==='onsite')renderOnSite();
+  if(tab==='log')renderLog();
+  if(tab==='reports'){/* rendered on demand via Generate report */}
+}
+
+function configureRole(){
+  document.querySelectorAll('.admin-only').forEach(el=>el.classList.toggle('hidden',!can('Admin')));
+  document.querySelectorAll('.approved-only').forEach(el=>el.classList.toggle('hidden',!canAny('Admin','Physical Security')));
+  document.querySelectorAll('.reports-only').forEach(el=>el.classList.toggle('hidden',!canAny('Admin','Physical Security')));
+  document.querySelectorAll('.staff-only').forEach(el=>el.classList.toggle('hidden',!can('Staff')));
+  document.querySelector('[data-tab="signin"]').classList.toggle('hidden',!canSignVisitor());
+  document.querySelector('[data-tab="onsite"]').classList.toggle('hidden',!canAny('Admin','Physical Security','Reception'));
+  document.querySelector('[data-tab="log"]').classList.toggle('hidden',!canAny('Admin','Reception','Physical Security'));
+  document.querySelectorAll('.non-staff-nav').forEach(el=>el.classList.toggle('hidden',can('Staff')));
+  document.getElementById('currentUserBadge').textContent=currentUser.email+' · '+currentUser.group;
+  const first=can('Staff')?'staff-dashboard':'dashboard';
+  switchTab(first);
+}
+
+
+
+document.getElementById('navTabs').addEventListener('click',e=>{
+  const btn=e.target.closest('.nav-tab');
+  if(!btn)return;
+  switchTab(btn.dataset.tab);
+});
+
+/* Sign-in request: one visitor record per guest, sharing the rest of the form */
+document.getElementById('signInForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!canSignVisitor())return;
+  const submitBtn=e.target.querySelector('button[type="submit"]');submitBtn.disabled=true;
+
+  const guestNames=[...document.querySelectorAll('.guest-name-input')].map(i=>i.value.trim());
+  if(!guestNames.length||guestNames.some(n=>!n)){
+    showAlert('Enter a name for every guest.','danger');
+    submitBtn.disabled=false;
+    return;
+  }
+
+  const groupId=uid();
+  let attachment=null;
+  const file=document.getElementById('f_guestDocument').files[0];
+  if(file){try{const fd=new FormData();fd.append('file',file);const response=await fetch('/api/visitors/attachment',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF},body:fd});const result=await response.json();if(!response.ok)throw new Error(result.message||'Attachment upload failed');attachment=result;}catch(err){showAlert(err.message,'danger');submitBtn.disabled=false;return;}}
+  try{await apiRequest('/api/vms/notification-preferences',{method:'PUT',body:JSON.stringify({every_action:document.getElementById('notifyEveryAction').checked,status_changes:document.getElementById('notifyStatusChange').checked})});}catch(err){showAlert(err.message,'danger');submitBtn.disabled=false;return;}
+  const shared={
+    notifyEveryAction:document.getElementById('notifyEveryAction').checked,notifyStatusChange:document.getElementById('notifyStatusChange').checked,
+    requestEmail:currentUser.email,hostEmail:document.getElementById('f_toSee').value.trim(),
+    phone:document.getElementById('f_phone').value.trim(),
+    addressOrg:document.getElementById('f_addressOrg').value.trim(),
+    toSee:document.getElementById('f_toSee').value.trim(),
+    purpose:document.getElementById('f_purpose').value.trim(),
+    floor:document.getElementById('f_floor').value,
+    department:document.getElementById('f_department').value.trim(),
+    tagNo:'',timeIn:null,timeOut:null,status:'pending',
+    deviceInfo:'',createdAt:new Date().toISOString(),groupId,guestAttachment:attachment
+  };
+
+  let successCount=0;
+  for(const name of guestNames){
+    try{
+      const saved=await persistVisitor({...shared,id:uid(),fullName:name});
+      visitors.push(saved);
+      successCount++;
+    }catch(err){
+      console.error(err);
+      showAlert('Could not save the request for '+name+': '+(err.message||'Unknown error'),'danger');
+    }
+  }
+
+  if(successCount){
+    showAlert(successCount===guestNames.length
+      ? (guestNames.length>1?`Visitor request submitted for ${successCount} guests (logged as one request) and saved for approval.`:'Visitor request submitted and saved for approval.')
+      : `${successCount} of ${guestNames.length} guest requests were saved.`,'success');
+    e.target.reset();
+    renderGuestNameFields();
+    refreshAllViews();
+  }
+  submitBtn.disabled=false;
+});
+
+/* Pending approvals */
+function renderApprovals(){
+  const groups=groupByRequest(visitors.filter(v=>v.status==='pending'))
+    .sort((a,b)=>new Date(b.primary.createdAt||0)-new Date(a.primary.createdAt||0));
+  document.getElementById('approvalEmpty').style.display=groups.length?'none':'block';
+  document.getElementById('approvalTbody').innerHTML=groups.map(g=>{const v=g.primary;return `<tr class="pending-row">
+    <td>${escapeHtml(g.names)}<br><small>${escapeHtml(v.phone)}</small></td>
+    <td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td>
+    <td>${escapeHtml(v.floor)}</td><td>${escapeHtml(v.department)}</td><td>${escapeHtml(v.requestEmail||'—')}</td>
+    <td><div class="btn-row"><button class="btn btn-outline btn-sm" onclick="showRequestDetails('${g.key}')">...</button><button class="btn btn-primary btn-sm" onclick="approveRequest('${g.key}')">Approve</button><button class="btn btn-danger-outline btn-sm" onclick="openRejectModal('${g.key}')">Reject</button></div></td>
+  </tr>`;}).join('');
+}
+function showRequestDetails(key){const members=visitors.filter(v=>(v.groupId||v.id)===key);const v=members[0];if(!v)return;document.getElementById('requestDetailBody').innerHTML=`<strong>${escapeHtml(members.map(x=>x.fullName).join(', '))}</strong><br>Phone: ${escapeHtml(v.phone)}<br>Organization: ${escapeHtml(v.addressOrg)}<br>Host: ${escapeHtml(v.toSee)}<br>Purpose: ${escapeHtml(v.purpose)}<br>Floor: ${escapeHtml(v.floor)}<br>Department: ${escapeHtml(v.department)}<br>Submitted by: ${escapeHtml(v.requestEmail)}<br>Guest document: ${v.guestAttachment?`<a href="/api/visitors/attachment/${encodeURIComponent(v.guestAttachment.stored)}">${escapeHtml(v.guestAttachment.filename)}</a>`:'None attached'}`;document.getElementById('requestDetailModal').classList.add('open');}
+async function approveRequest(key){
+  const ids=idsForGroupKey(key).filter(id=>{const v=visitors.find(x=>x.id===id);return v&&v.status==='pending';});
+  if(!ids.length)return;
+  const sample=visitors.find(x=>x.id===ids[0]);
+  try{
+    await updateVisitor(ids[0],{status:'approved',approvedAt:new Date().toISOString()});
+    const emailSent=visitors.find(v=>v.id===ids[0])?._emailSent===true;
+    showAlert((ids.length>1?`Request approved for ${ids.length} guests. `:'Request approved. ')+(emailSent?'Approval code email accepted by the mail server.':'Approval saved, but the email was not confirmed. Check SMTP configuration and server logs.'),'success');
+    refreshAllViews();
+  }catch(err){
+    console.error(err);
+    showAlert(err.message||'Could not approve this request.','danger');
+    refreshAllViews();
+  }
+}
+
+/* Reject flow */
+function openRejectModal(key){
+  const ids=idsForGroupKey(key).filter(id=>{const v=visitors.find(x=>x.id===id);return v&&v.status==='pending';});
+  if(!ids.length)return;
+  const members=ids.map(id=>visitors.find(x=>x.id===id));
+  const v=members[0];
+  pendingRejectId=key;
+  const names=members.map(m=>escapeHtml(m.fullName)).join(', ');
+  document.getElementById('rejectSummary').innerHTML=`<strong>${names}</strong> · ${escapeHtml(v.addressOrg)}<br>Visiting ${escapeHtml(v.toSee)} · Floor ${escapeHtml(v.floor)} · Department ${escapeHtml(v.department)}`;
+  document.getElementById('rejectReason').value='';
+  document.getElementById('rejectModal').classList.add('open');
+}
+function closeRejectModal(){document.getElementById('rejectModal').classList.remove('open');pendingRejectId=null}
+document.getElementById('closeRejectModal').addEventListener('click',closeRejectModal);
+document.getElementById('cancelReject').addEventListener('click',closeRejectModal);
+document.getElementById('rejectModal').addEventListener('click',e=>{if(e.target.id==='rejectModal')closeRejectModal()});
+document.getElementById('confirmReject').addEventListener('click',async()=>{
+  if(!pendingRejectId)return;
+  const reason=document.getElementById('rejectReason').value.trim();
+  if(!reason){showAlert('Enter a comment explaining the rejection.','danger');return}
+  const ids=idsForGroupKey(pendingRejectId).filter(id=>{const v=visitors.find(x=>x.id===id);return v&&v.status==='pending';});
+  if(!ids.length){closeRejectModal();return}
+  const btn=document.getElementById('confirmReject');btn.disabled=true;
+  try{
+    for(const id of ids){
+      await rejectVisitorRequest(id,reason);
+    }
+    showAlert(ids.length>1?`Request rejected for ${ids.length} guests and logged.`:'Request rejected and logged.','success');
+    closeRejectModal();
+    refreshAllViews();
+  }catch(err){
+    console.error(err);
+    showAlert(err.message||'Could not reject this request.','danger');
+    refreshAllViews();
+  }finally{btn.disabled=false;}
+});
+
+/* Approved requests */
+function renderApproved(){
+  const groups=groupByRequest(visitors.filter(v=>v.status==='approved'))
+    .sort((a,b)=>new Date(b.primary.approvedAt||b.primary.createdAt||0)-new Date(a.primary.approvedAt||a.primary.createdAt||0));
+  document.getElementById('approvedEmpty').style.display=groups.length?'none':'block';
+  document.getElementById('approvedTbody').innerHTML=groups.map(g=>{const v=g.primary;return `<tr class="approved-row">
+    <td>${escapeHtml(g.names)}<br><small>${escapeHtml(v.phone)}</small></td>
+    <td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td>
+    <td>${escapeHtml(v.floor)}</td><td>${escapeHtml(v.department)}</td><td><strong>${escapeHtml(v.approvalCode||'—')}</strong></td><td>${fmtDateTime(v.approvedAt)}</td>
+    <td><button class="btn btn-primary btn-sm" onclick="openCheckInGroup('${g.key}')">Check in${g.members.length>1?' ('+g.members.length+')':''}</button></td>
+  </tr>`;}).join('');
+}
+
+/* Rejected requests (Admin only) */
+function renderRejected(){
+  const groups=groupByRequest(visitors.filter(v=>v.status==='rejected'))
+    .sort((a,b)=>new Date(b.primary.rejectedAt||0)-new Date(a.primary.rejectedAt||0));
+  document.getElementById('rejectedEmpty').style.display=groups.length?'none':'block';
+  document.getElementById('rejectedTbody').innerHTML=groups.map(g=>{const v=g.primary;return `<tr class="rejected-row">
+    <td>${escapeHtml(g.names)}<br><small>${escapeHtml(v.phone)}</small></td>
+    <td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td>
+    <td>${escapeHtml(v.floor)}</td><td>${escapeHtml(v.department)}</td><td>${escapeHtml(v.rejectedBy||'—')}</td>
+    <td>${fmtDateTime(v.rejectedAt)}</td><td class="rejection-reason">${escapeHtml(v.rejectionReason||'—')}</td>
+  </tr>`;}).join('');
+}
+
+/* Staff dashboard/log */
+function renderStaffDashboard(){
+  const rows=getStaffRecords();
+  document.getElementById('staffStatPending').textContent=rows.filter(v=>v.status==='pending').length;
+  document.getElementById('staffStatApproved').textContent=rows.filter(v=>v.status==='approved').length;
+  document.getElementById('staffStatCheckedIn').textContent=rows.filter(v=>v.status==='checked_in').length;
+  document.getElementById('staffStatCheckedOut').textContent=rows.filter(v=>v.status==='checked_out'&&isToday(v.timeOut)).length;
+
+  const recent=[...rows].sort((a,b)=>new Date(b.createdAt||b.timeIn||0)-new Date(a.createdAt||a.timeIn||0)).slice(0,10);
+  const host=document.getElementById('staffRecentActivity');
+  host.innerHTML=recent.length?recent.map(v=>`<div class="recent-list-item">
+    <div><div class="name">${escapeHtml(v.fullName)}</div><div class="sub">${escapeHtml(v.addressOrg||'')} · to see ${escapeHtml(v.toSee)}</div></div>
+    <div style="text-align:right">${statusBadge(v.status)}<div class="sub" style="margin-top:.25rem">${fmtDateTime(v.createdAt)}</div></div>
+  </div>`).join(''):'<div class="empty-state" style="padding:2rem 1rem">No activity yet.</div>';
+}
+
+function renderStaffLog(){
+  const q=(document.getElementById('staffLogSearch').value||'').toLowerCase();
+  const filter=document.getElementById('staffLogFilter').value;
+  const rows=buildLogRows(getStaffRecords()).filter(v=>{
+    const text=[v.fullName,v.tagNo,v.toSee,v.addressOrg,v.department,v.requestEmail,v.hostEmail].join(' ').toLowerCase();
+    return (!q||text.includes(q))&&(filter==='all'||v.status===filter);
+  }).sort((a,b)=>new Date(b.createdAt||b.timeIn||0)-new Date(a.createdAt||a.timeIn||0));
+  document.getElementById('staffLogEmpty').style.display=rows.length?'none':'block';
+  document.getElementById('staffLogTbody').innerHTML=rows.map(v=>`<tr>
+    <td>${escapeHtml(v.fullName)}</td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td>
+    <td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(v.department||'—')}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${escapeHtml(v.tagNo||'—')}</td>
+    <td>${fmtDateTime(v.timeIn)}</td><td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}</td>
+  </tr>`).join('');
+}
+
+/* Check-in */
+let activeCheckInGroup=[];
+function openCheckInGroup(key){
+  if(!canCheckIn())return;
+  const ids=idsForGroupKey(key).filter(id=>{const v=visitors.find(x=>x.id===id);return v&&v.status==='approved';});
+  if(!ids.length)return;
+  activeCheckInGroup=ids;
+  document.getElementById('groupCheckInNames').innerHTML=ids.map(id=>{const v=visitors.find(x=>x.id===id);return `<label class="device-confirm-item"><input type="checkbox" class="group-checkin-person" value="${id}" checked><span>${escapeHtml(v.fullName)}</span></label>`}).join('');
+  const usedByOtherGroups=visitors.filter(v=>v.status==='checked_in'&&(v.groupId||v.id)!==key).map(v=>String(v.tagNo));
+  document.getElementById('sharedGroupTag').innerHTML='<option value="">Select tag</option>'+Array.from({length:100},(_,i)=>i+1).filter(n=>!usedByOtherGroups.includes(String(n))).map(n=>`<option value="${n}">${n}</option>`).join('');
+  document.getElementById('groupTagMode').onchange=()=>document.getElementById('sharedTagWrap').style.display=document.getElementById('groupTagMode').value==='shared'?'block':'none';
+  document.getElementById('groupTagMode').onchange();
+  document.getElementById('groupCheckInModal').classList.add('open');
+}
+function closeGroupCheckIn(){document.getElementById('groupCheckInModal').classList.remove('open');activeCheckInGroup=[];}
+document.getElementById('confirmGroupCheckIn').addEventListener('click',async()=>{
+ const ids=[...document.querySelectorAll('.group-checkin-person:checked')].map(x=>x.value);if(!ids.length){showAlert('Select at least one visitor.','danger');return;}
+ const mode=document.getElementById('groupTagMode').value;const shared= document.getElementById('sharedGroupTag').value;
+ if(mode==='shared'&&!shared){showAlert('Select a shared tag number.','danger');return;}
+ closeGroupCheckIn();
+ if(mode==='individual'){checkInQueue=ids.slice(1);checkInGroupTotal=ids.length;checkInGroupIndex=1;openCheckInModal(ids[0]);return;}
+ const btn=document.getElementById('confirmGroupCheckIn');btn.disabled=true;
+ try{for(const id of ids){await checkInVisitor(id,{tagNo:Number(shared),laptop:false,otherDevice:false,deviceInfo:'No'});}showAlert(`${ids.length} visitor(s) checked in with tag ${shared}.`,'success');refreshAllViews();}
+ catch(err){showAlert(err.message||'Some visitors could not be checked in. Refresh the page and review their status.','danger');refreshAllViews();}
+ finally{btn.disabled=false;}
+});
+function openCheckInModal(id){
+  if(!canCheckIn())return;
+  const v=visitors.find(x=>x.id===id);if(!v||v.status!=='approved')return;
+  pendingCheckInId=id;
+  const groupNote=checkInGroupTotal>1?` <span style="color:var(--text-light);">· Guest ${checkInGroupIndex} of ${checkInGroupTotal}</span>`:'';
+  document.getElementById('checkInSummary').innerHTML=`<strong>${escapeHtml(v.fullName)}</strong>${groupNote} · ${escapeHtml(v.addressOrg)}<br>Visiting ${escapeHtml(v.toSee)} · Floor ${escapeHtml(v.floor)} · Department ${escapeHtml(v.department)}`;
+  populateTagOptions(id);
+  document.getElementById('checkInTagNo').value=v.tagNo||'';
+  document.getElementById('checkInLaptop').checked=false;
+  document.getElementById('checkInOtherDevice').checked=false;
+  document.getElementById('laptopDetailsGroup').classList.add('hidden');
+  document.getElementById('otherDeviceGroup').classList.add('hidden');
+  document.getElementById('checkInLaptopQty').value=1;
+  document.getElementById('checkInLaptopModel').value='';
+  document.getElementById('checkInLaptopDetail').value='';
+  document.getElementById('checkInDeviceInfo').value='';
+  document.getElementById('checkInModal').classList.add('open');
+}
+function closeCheckInModal(){
+  document.getElementById('checkInModal').classList.remove('open');
+  pendingCheckInId=null;checkInQueue=[];checkInGroupTotal=0;checkInGroupIndex=0;
+}
+document.getElementById('closeCheckInModal').addEventListener('click',closeCheckInModal);
+document.getElementById('cancelCheckIn').addEventListener('click',closeCheckInModal);
+document.getElementById('checkInModal').addEventListener('click',e=>{if(e.target.id==='checkInModal')closeCheckInModal()});
+document.getElementById('confirmCheckIn').addEventListener('click',async()=>{
+  if(!pendingCheckInId)return;
+  if(!canCheckIn())return;
+  const tag=document.getElementById('checkInTagNo').value;
+  if(tag===''){showAlert('Select the tag number before checking in.','danger');return}
+  if(visitors.some(v=>v.id!==pendingCheckInId&&v.status==='checked_in'&&String(v.tagNo)===String(tag))){showAlert('That tag is already assigned to a visitor currently on-site. Choose another.','danger');populateTagOptions(pendingCheckInId);return}
+  const laptop=document.getElementById('checkInLaptop').checked;
+  const laptopQty=document.getElementById('checkInLaptopQty').value;
+  const laptopModel=document.getElementById('checkInLaptopModel').value.trim();
+  const laptopDetail=document.getElementById('checkInLaptopDetail').value.trim();
+  if(laptop&&(laptopQty===''||Number(laptopQty)<1)){showAlert('Enter the laptop quantity.','danger');return}
+  if(laptop&&!laptopModel){showAlert('Enter the laptop model.','danger');return}
+  const other=document.getElementById('checkInOtherDevice').checked;
+  const info=document.getElementById('checkInDeviceInfo').value.trim();
+  if(other&&!info){showAlert('Enter the other device details.','danger');return}
+  const laptopLabel=laptop?`Laptop x${laptopQty} (${laptopModel})`:'';
+  const deviceInfo=[laptopLabel,other?info:''].filter(Boolean).join(', ')||'No';
+  const btn=document.getElementById('confirmCheckIn');btn.disabled=true;
+  try{
+    await checkInVisitor(pendingCheckInId,{
+      tagNo:Number(tag),
+      laptop,
+      laptopQuantity:laptop?Number(laptopQty):null,
+      laptopModel:laptop?laptopModel:'',
+      laptopDetail:laptop?laptopDetail:'',
+      otherDevice:other,
+      otherDeviceDetails:other?info:'',
+      deviceInfo
+    });
+    showAlert('Visitor checked in successfully.','success');
+    if(checkInQueue.length){
+      // More guests in this party still need a tag/device assignment — move
+      // straight to the next one instead of closing the modal.
+      checkInGroupIndex++;
+      const nextId=checkInQueue.shift();
+      pendingCheckInId=null;
+      refreshAllViews();
+      openCheckInModal(nextId);
+    }else{
+      closeCheckInModal();
+      refreshAllViews();
+    }
+  }catch(err){
+    console.error(err);
+    showAlert(err.message||'The visitor could not be checked in.','danger');
+  }finally{btn.disabled=false;}
+});
+
+/* On-site */
+function renderOnSite(){
+  const q=(document.getElementById('onsiteSearch').value||'').toLowerCase();
+  const rows=visitors.filter(v=>v.status==='checked_in').filter(v=>
+    !q||[v.fullName,v.tagNo,v.toSee,v.addressOrg,v.department].some(x=>String(x||'').toLowerCase().includes(q))
+  ).sort((a,b)=>new Date(b.timeIn||b.approvedAt||b.createdAt||0)-new Date(a.timeIn||a.approvedAt||a.createdAt||0));
+  document.getElementById('onsiteEmpty').style.display=rows.length?'none':'block';
+  document.getElementById('onsiteTbody').innerHTML=rows.map(v=>`<tr>
+    <td>${escapeHtml(v.fullName)}</td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.phone)}</td><td>${escapeHtml(v.toSee)}</td>
+    <td>${escapeHtml(v.purpose)}</td><td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(deviceSummary(v))}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${v.tagNo?'<strong>'+escapeHtml(v.tagNo)+'</strong>':'<span class="muted">Not assigned</span>'}</td>
+    <td>${fmtTime(v.timeIn)}</td><td>${statusBadge(v.status)}</td>
+    <td>${v.status==='checked_in'&&canCheckOut()?`<button class="btn btn-outline btn-sm" onclick="openSignOutModal('${v.id}')">Sign out</button>`:''}</td>
+  </tr>`).join('');
+}
+document.getElementById('onsiteSearch').addEventListener('input',renderOnSite);
+
+/* Sign out (Security) */
+function openSignOutModal(id){
+  if(!canCheckOut())return;const v=visitors.find(x=>x.id===id);if(!v)return;pendingSignOutId=id;
+  document.getElementById('signOutSummary').innerHTML=`<strong>${escapeHtml(v.fullName)}</strong> · Tag no. ${escapeHtml(v.tagNo)}<br>Visiting ${escapeHtml(v.toSee)} · Checked in at ${fmtDateTime(v.timeIn)}`;
+  const list=document.getElementById('signOutDeviceList');
+  const items=[];
+  if(v.laptop){
+    const laptopName=`Laptop${v.laptopQuantity?' x'+v.laptopQuantity:''}${v.laptopModel?' ('+v.laptopModel+')':''}`;
+    items.push({id:'signOutLaptopReturned',name:laptopName,sub:v.laptopDetail?v.laptopDetail:'Logged at check-in'});
+  }
+  if(v.otherDevice)items.push({id:'signOutOtherReturned',name:v.otherDeviceDetails||'Other device',sub:'Logged at check-in'});
+  list.innerHTML=items.length?items.map(it=>`<label class="device-confirm-item" for="${it.id}">
+      <input type="checkbox" id="${it.id}" checked>
+      <span><span class="device-name">${escapeHtml(it.name)}</span><br><span class="device-sub">${escapeHtml(it.sub)} · confirm leaving with visitor</span></span>
+    </label>`).join(''):'<div class="form-hint">No devices were logged for this visitor at check-in.</div>';
+  document.getElementById('signOutComment').value='';
+  document.getElementById('signOutModal').classList.add('open');
+}
+function closeSignOutModal(){document.getElementById('signOutModal').classList.remove('open');pendingSignOutId=null}
+document.getElementById('closeSignOutModal').addEventListener('click',closeSignOutModal);
+document.getElementById('cancelSignOut').addEventListener('click',closeSignOutModal);
+document.getElementById('signOutModal').addEventListener('click',e=>{if(e.target.id==='signOutModal')closeSignOutModal()});
+document.getElementById('confirmSignOut').addEventListener('click',async()=>{
+  if(!pendingSignOutId)return;
+  const v=visitors.find(x=>x.id===pendingSignOutId);
+  const laptopEl=document.getElementById('signOutLaptopReturned');
+  const otherEl=document.getElementById('signOutOtherReturned');
+  if(v&&v.laptop&&laptopEl&&!laptopEl.checked){showAlert('Confirm the laptop is leaving with the visitor, or note the discrepancy before signing out.','danger');return}
+  if(v&&v.otherDevice&&otherEl&&!otherEl.checked){showAlert('Confirm the other device is leaving with the visitor, or note the discrepancy before signing out.','danger');return}
+  const btn=document.getElementById('confirmSignOut');btn.disabled=true;
+  try{
+    await checkOutVisitor(pendingSignOutId,{
+      laptopReturned:laptopEl?laptopEl.checked:false,
+      otherDeviceReturned:otherEl?otherEl.checked:false,
+      signOutComment:document.getElementById('signOutComment').value.trim()
+    });
+    showAlert('Visitor signed out successfully.','success');
+    closeSignOutModal();
+    refreshAllViews();
+  }catch(err){
+    console.error(err);
+    showAlert(err.message||'The visitor could not be signed out.','danger');
+  }finally{btn.disabled=false;}
+});
+
+/* Full log: groups pending/approved/rejected requests into one row per
+   party (matching Pending Approvals), since they haven't been individuated
+   with a tag yet; checked-in/checked-out visits stay one row per person
+   because each has their own tag number and time in/out. */
+function buildLogRows(rows){
+  const groupable=rows.filter(v=>['pending','approved','rejected'].includes(v.status));
+  const individual=rows.filter(v=>['checked_in','checked_out'].includes(v.status));
+  const grouped=groupByRequest(groupable).map(g=>({...g.primary,fullName:g.names,_groupSize:g.members.length}));
+  return [...grouped,...individual];
+}
+function renderLog(){
+  const q=(document.getElementById('logSearch').value||'').toLowerCase(),filter=document.getElementById('logFilter').value;
+  const rows=buildLogRows(visitors).filter(v=>{
+    const text=[v.fullName,v.tagNo,v.toSee,v.addressOrg,v.department,v.requestEmail].join(' ').toLowerCase();
+    return (!q||text.includes(q))&&(filter==='all'||v.status===filter);
+  }).sort((a,b)=>new Date(b.createdAt||b.timeIn||0)-new Date(a.createdAt||a.timeIn||0));
+  document.getElementById('logEmpty').style.display=rows.length?'none':'block';
+  document.getElementById('logTbody').innerHTML=rows.map(v=>`<tr>
+    <td>${escapeHtml(v.fullName)}</td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td><td>${escapeHtml(v.approvalCode||'—')}</td>
+    <td>${escapeHtml(v.tagNo||'—')}</td><td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(v.department||'—')}</td><td>${fmtDateTime(v.timeIn)}</td>
+    <td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}</td>
+  </tr>`).join('');
+}
+document.getElementById('logSearch').addEventListener('input',renderLog);
+document.getElementById('logFilter').addEventListener('change',renderLog);
+document.getElementById('staffLogSearch').addEventListener('input',renderStaffLog);
+document.getElementById('staffLogFilter').addEventListener('change',renderStaffLog);
+
+document.getElementById('exportCsvBtn').addEventListener('click',()=>{
+  const headers=['Request Email','Approval Code','Full Name','Phone','Address/Organization','Whom to See','Purpose','Floor','Department','Tag No','Device Info','Time In','Time Out','Status'];
+  const rows=visitors.map(v=>[v.requestEmail,v.approvalCode,v.fullName,v.phone,v.addressOrg,v.toSee,v.purpose,v.floor,v.department,v.tagNo,v.deviceInfo,v.timeIn,v.timeOut,v.status]);
+  const csv=[headers,...rows].map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='visitor-full-log.csv';a.click();
+});
+
+document.getElementById('clearAllBtn').addEventListener('click',async()=>{
+  if(!can('Admin'))return;
+  if(!confirm('This will permanently delete all visitor records for everyone using this app. Continue?'))return;
+  try{
+    await apiRequest('/api/visitors',{method:'DELETE'});
+    visitors=[];
+    showAlert('All visitor records have been cleared.','success');
+    refreshAllViews();
+  }catch(err){
+    console.error(err);
+    showAlert(err.message||'Could not clear visitor records.','danger');
+  }
+});
+
+/* Reports (Admin + Physical Security) */
+function weekOfMonth(date){return Math.ceil(date.getDate()/7);}
+function drawReportCharts(containerId, counts){
+ const box=document.getElementById(containerId);box.replaceChildren();
+ const entries=Object.entries(counts),total=entries.reduce((s,[k,n])=>s+n,0);
+ if(!total){box.textContent='No records match these filters.';return;}
+ const colors=['#0a6634','#5088b3','#d2a64b','#ae5065','#8776b0','#566871'];
+ const ns='http://www.w3.org/2000/svg';
+ function el(name,attrs,text){const e=document.createElementNS(ns,name);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,v);if(text!==undefined)e.textContent=text;return e;}
+ const bars=el('svg',{viewBox:'0 0 600 '+(entries.length*48+30),role:'img','aria-label':'Bar chart of report records by status',style:'width:100%;max-width:650px'});
+ const max=Math.max(...entries.map(x=>x[1]));
+ entries.forEach(([label,n],i)=>{const y=i*48+10;bars.append(el('text',{x:0,y:y+20,'font-size':14},label),el('rect',{x:160,y,width:330*n/max,height:28,fill:colors[i%colors.length],rx:4}),el('text',{x:500,y:y+20,'font-size':14},String(n)));});
+ const pie=el('svg',{viewBox:'0 0 230 230',role:'img','aria-label':'Pie chart of report records by status',style:'width:230px;max-width:100%'});let angle=-Math.PI/2;
+ entries.forEach(([label,n],i)=>{if(!n)return;const next=angle+2*Math.PI*n/total;let shape;if(n===total)shape=el('circle',{cx:115,cy:115,r:95,fill:colors[i%colors.length]});else shape=el('path',{d:`M115 115 L${115+95*Math.cos(angle)} ${115+95*Math.sin(angle)} A95 95 0 ${n/total>0.5?1:0} 1 ${115+95*Math.cos(next)} ${115+95*Math.sin(next)} Z`,fill:colors[i%colors.length]});shape.append(el('title',{},`${label}: ${n}`));pie.append(shape);angle=next;});
+ const layout=document.createElement('div');layout.style='display:flex;align-items:center;gap:24px;flex-wrap:wrap';layout.append(pie,bars);box.append(layout);
+ const legend=document.createElement('p');legend.textContent=entries.map(([label,n])=>`${label}: ${n} (${Math.round(n/total*100)}%)`).join(' · ');box.append(legend);
+}
+function generateReport(){
+  const from=document.getElementById('reportFrom').value;
+  const to=document.getElementById('reportTo').value;
+  const hourFrom=document.getElementById('reportHourFrom').value;
+  const hourTo=document.getElementById('reportHourTo').value;
+  const days=[...document.querySelectorAll('.report-day:checked')].map(c=>Number(c.value));
+  const weeks=[...document.querySelectorAll('.report-week:checked')].map(c=>Number(c.value));
+  const includeOnsite=document.getElementById('reportIncludeOnsite').checked;
+  const includeOut=document.getElementById('reportIncludeOut').checked;
+
+  reportRows=visitors.filter(v=>{
+    if(!v.timeIn)return false;
+    if(v.status==='checked_in'&&!includeOnsite)return false;
+    if(v.status==='checked_out'&&!includeOut)return false;
+    if(!['checked_in','checked_out'].includes(v.status))return false;
+    const d=new Date(v.timeIn);
+    if(from&&d<new Date(from+'T00:00:00'))return false;
+    if(to&&d>new Date(to+'T23:59:59'))return false;
+    if(hourFrom!==''&&hourTo!==''){
+      const h=d.getHours(),hf=Number(hourFrom),ht=Number(hourTo);
+      if(hf<=ht){if(h<hf||h>ht)return false;}else{if(h<hf&&h>ht)return false;}
+    }
+    if(days.length&&!days.includes(d.getDay()))return false;
+    if(weeks.length&&!weeks.includes(weekOfMonth(d)))return false;
+    return true;
+  }).sort((a,b)=>new Date(b.timeIn)-new Date(a.timeIn));
+
+  drawReportCharts('vmsReportCharts',{'On site':reportRows.filter(v=>v.status==='checked_in').length,'Checked out':reportRows.filter(v=>v.status==='checked_out').length});
+  document.getElementById('reportCount').textContent=reportRows.length+' record'+(reportRows.length===1?'':'s')+' found';
+  document.getElementById('reportEmpty').style.display=reportRows.length?'none':'block';
+  if(!reportRows.length)document.getElementById('reportEmpty').textContent='No visits match these filters.';
+  document.getElementById('reportTbody').innerHTML=reportRows.map(v=>`<tr>
+    <td>${escapeHtml(v.fullName)}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${escapeHtml(v.tagNo||'—')}</td><td>${escapeHtml(v.floor||'—')}</td>
+    <td>${escapeHtml(deviceSummary(v))}</td><td>${escapeHtml(v.checkedInBy||'—')}</td><td>${escapeHtml(v.checkedOutBy||'—')}</td>
+    <td>${fmtDateTime(v.timeIn)}</td><td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}</td>
+  </tr>`).join('');
+}
+document.getElementById('generateReportBtn').addEventListener('click',generateReport);
+document.getElementById('exportReportCsvBtn').addEventListener('click',()=>{
+  if(!reportRows.length){showAlert('Generate a report before exporting.','danger');return}
+  const headers=['Visitor','Approval Code','Tag No','Floor','Devices Carried','Checked In By','Checked Out By','Time In','Time Out','Status'];
+  const rows=reportRows.map(v=>[v.fullName,v.approvalCode,v.tagNo,v.floor,deviceSummary(v),v.checkedInBy,v.checkedOutBy,v.timeIn,v.timeOut,v.status]);
+  const csv=[headers,...rows].map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='security-report.csv';a.click();
+});
+
+/* Dashboard */
+function renderDashboard(){
+  const pending=visitors.filter(v=>v.status==='pending');
+  const approved=visitors.filter(v=>v.status==='approved');
+  const checkedInToday=visitors.filter(v=>v.status==='checked_in');
+  const outToday=visitors.filter(v=>v.status==='checked_out'&&isToday(v.timeOut));
+  document.getElementById('statPending').textContent=pending.length;
+  document.getElementById('statApproved').textContent=approved.length;
+  document.getElementById('statCheckedInToday').textContent=checkedInToday.length;
+  document.getElementById('statOutToday').textContent=outToday.length;
+  const recent=[...visitors].sort((a,b)=>new Date(b.createdAt||b.timeIn||0)-new Date(a.createdAt||a.timeIn||0)).slice(0,10);
+  document.getElementById('recentActivity').innerHTML=recent.length?recent.map(v=>`<div class="recent-list-item">
+    <div><div class="name">${escapeHtml(v.fullName)}</div><div class="sub">${escapeHtml(v.requestEmail||'')} · to see ${escapeHtml(v.toSee)}</div></div>
+    <div style="text-align:right">${statusBadge(v.status)}<div class="sub" style="margin-top:.25rem">${fmtTime(v.timeIn||v.createdAt)}</div></div>
+  </div>`).join(''):'<div class="empty-state" style="padding:2rem 1rem">No activity yet.</div>';
+  renderWeekChart();
+}
+function renderWeekChart(){
+  const canvas=document.getElementById('weekChart');
+  if(!canvas)return; // The chart area may have already been replaced by the fallback message below.
+  if(typeof Chart==='undefined'){
+    // Chart.js failed to load from the CDN (e.g. no internet access on this
+    // machine, or the CDN is blocked). Fail gracefully instead of throwing.
+    console.error('Chart.js is not defined — the CDN script did not load.');
+    const box=canvas.closest('.chart-box');
+    if(box)box.innerHTML='<div class="empty-state" style="padding:2rem 1rem">Chart library failed to load (no network access to cdnjs.cloudflare.com). The rest of the app still works.</div>';
+    return;
+  }
+  const days=[];for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d)}
+  const labels=days.map(d=>d.toLocaleDateString(undefined,{weekday:'short'}));
+  const counts=days.map(d=>visitors.filter(v=>v.status==='checked_in'&&v.timeIn&&new Date(v.timeIn).toDateString()===d.toDateString()).length);
+  const ctx=canvas.getContext('2d');if(weekChart)weekChart.destroy();
+  weekChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Checked in',data:counts,backgroundColor:'#16a350',borderRadius:6,maxBarThickness:36}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:'Visitors checked in per day (last 7 days)',color:'#05401e',font:{size:13,weight:'600'}}},
+    scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#f0fdf4'}},x:{grid:{display:false}}}}});
+}
+function updateNavCounts(){
+  document.getElementById('pendingPill').textContent=visitors.filter(v=>v.status==='pending').length;
+  document.getElementById('approvedPill').textContent=visitors.filter(v=>v.status==='approved').length;
+  document.getElementById('rejectedPill').textContent=visitors.filter(v=>v.status==='rejected').length;
+  document.getElementById('onsitePill').textContent=visitors.filter(v=>v.status==='checked_in').length;
+}
+
+(async function init(){
+  updateNavCounts();
+  setInterval(async()=>{
+    if(!currentUser)return;
+    await loadVisitors();
+    safeRender(updateNavCounts);
+    const active=document.querySelector('.nav-tab.active')?.dataset.tab;
+    if(active==='dashboard')safeRender(renderDashboard);
+    if(active==='staff-dashboard')safeRender(renderStaffDashboard);
+    if(active==='staff-log')safeRender(renderStaffLog);
+    if(active==='approvals')safeRender(renderApprovals);
+    if(active==='approved')safeRender(renderApproved);
+    if(active==='rejected')safeRender(renderRejected);
+    if(active==='onsite')safeRender(renderOnSite);
+    if(active==='log')safeRender(renderLog);
+  },8000);
+})();
+</script>
+
+<script>(async()=>{document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';await loadVisitors();updateNavCounts();configureRole();const p=new URLSearchParams(location.search);if(p.get('section'))switchTab(p.get('section'));if(currentUser.group==='Staff'&&p.get('status')){document.getElementById('staffLogFilter').value=p.get('status');renderStaffLog();}})();</script></body>
+</html>
