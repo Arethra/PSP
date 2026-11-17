@@ -1,7 +1,7 @@
 
 <!DOCTYPE html>
 <html lang="en">
-<head><script>const PSP_USER={{user|tojson}}; const PSP_STATE={{state|tojson}}; let PSP_VERSION={{version|tojson}}; const PSP_CSRF={{csrf|tojson}}; function persistICMS(){const x=new XMLHttpRequest();x.open('PUT','/api/icms',false);x.setRequestHeader('Content-Type','application/json');x.setRequestHeader('X-CSRF-Token',PSP_CSRF);x.send(JSON.stringify({batches:importBatches,history,version:PSP_VERSION,hr_upload_only:PSP_USER.group==='HR'}));if(x.status!==200){alert('Save failed. Reload to retrieve current records.');location.reload();throw new Error('Save failed');}PSP_VERSION=JSON.parse(x.responseText).version;}</script>
+<head><script>const PSP_USER={{user|tojson}}; const PSP_STATE={{state|tojson}}; let PSP_VERSION={{version|tojson}}; const PSP_CSRF={{csrf|tojson}}; function persistICMS(){const x=new XMLHttpRequest();x.open('PUT','/api/icms',false);x.setRequestHeader('Content-Type','application/json');x.setRequestHeader('X-CSRF-Token',PSP_CSRF);x.send(JSON.stringify({batches:importBatches,history,version:PSP_VERSION,hr_upload_only:PSP_USER.group==='HR'}));if(x.status!==200){let why='';try{why=JSON.parse(x.responseText).message||''}catch(e){}alert('Save failed'+(why?': '+why:'')+' (HTTP '+x.status+'). The page will reload to retrieve current records.');location.reload();throw new Error('Save failed');}PSP_VERSION=JSON.parse(x.responseText).version;}</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
