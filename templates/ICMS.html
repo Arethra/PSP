@@ -1224,7 +1224,7 @@
       </button>
 
       <button class="nav-item" data-page="personnel">
-        <span class="nav-label">Personnel</span>
+        <span class="nav-label">All Staff</span>
       </button>
 
       <button class="nav-item" data-page="submissions">
@@ -1631,7 +1631,7 @@
               <input
                 id="personnelSearch"
                 type="text"
-                placeholder="Search by name or Employee ID..."
+                placeholder="Search any column (name, ID, department, status...)"
               >
 
             </div>
@@ -1712,7 +1712,7 @@
         </p>
 
 
-        <div class="import-box">
+        <div class="import-box" id="hrImportBox">
 
           <h3>
             New Personnel Import
@@ -1795,7 +1795,7 @@
             <input
               id="captureSearch"
               type="text"
-              placeholder="Search name or Employee ID..."
+              placeholder="Search any column (name, ID, department, status...)"
             >
 
           </div>
@@ -1830,7 +1830,7 @@
         </div>
 
         <p class="section-description">
-          Manage cards ready for issuance, issued cards and expired cards.
+          Manage cards ready for issuance and issued cards.
         </p>
 
 
@@ -1879,7 +1879,7 @@
                   <input
                     id="pendingSearch"
                     type="text"
-                    placeholder="Search name or Employee ID..."
+                    placeholder="Search any column (name, ID, department, status...)"
                   >
 
                 </div>
@@ -1945,7 +1945,7 @@
                   <input
                     id="collectedSearch"
                     type="text"
-                    placeholder="Search name or Employee ID..."
+                    placeholder="Search any column (name, ID, department, status...)"
                   >
 
                 </div>
@@ -1965,6 +1965,11 @@
 
         </div>
 
+      </section>
+
+
+<section id="page-cardreturn" class="page hidden"><div class="section-title">Pending Card Return</div><p class="section-description">Staff flagged by HR as retiring, resigning or otherwise exiting. A name moves to Expiring This Month in the month of the exit date, and to Expired ID Cards if the card is not returned by then.</p>
+<div class="id-card-section"><div class="card"><div class="card-header"><div><h3>Pending card return</h3><p>Exit date is in a later month.</p></div><span class="muted" id="cardReturnCount">0</span></div><div class="table-wrap" id="cardReturnTable"></div></div></div>
         <!-- EXPIRING THIS MONTH -->
 
         <div class="id-card-section">
@@ -2044,10 +2049,7 @@
           </div>
 
         </div>
-      </section>
-
-
-<section id="page-cardreturn" class="page hidden"><div class="section-title">Pending Card Return</div><p class="section-description">Full-term staff flagged by HR for resignation, retirement or another card-return requirement.</p><div class="card"><div class="table-wrap" id="cardReturnTable"></div></div></section>
+</section>
       <!-- =========================
            SUBMITTED IDs
       ========================== -->
@@ -2072,7 +2074,7 @@
                 <input
                   id="submittedSearch"
                   type="text"
-                  placeholder="Search by name or Employee ID..."
+                  placeholder="Search any column (name, ID, department, status...)"
                 >
               </div>
             </div>
@@ -2294,6 +2296,15 @@
 <!-- =========================
      DETAILS MODAL
 ========================== -->
+
+<div class="modal-overlay hidden" id="exitModal"><div class="modal" style="width:min(460px,100%)"><form onsubmit="submitExitForm(event)">
+<div class="modal-header"><h2>Exit form</h2><button type="button" class="modal-close" onclick="closeExitForm()">×</button></div>
+<div class="modal-body" style="display:grid;gap:14px">
+<label>Staff name<input id="exitName" type="text" readonly style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px;background:#f3f6f4"></label>
+<label>Department<input id="exitDept" type="text" readonly style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px;background:#f3f6f4"></label>
+<label>Exit date (becomes the card expiry date)<input id="exitDate" type="date" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
+<label>Purpose for exit<select id="exitPurpose" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"><option value="">Select purpose</option><option>Retirement</option><option>Resignation</option><option>Termination</option><option>Other exit</option></select></label>
+</div><div class="modal-footer" style="gap:10px"><button type="button" class="btn btn-secondary" onclick="closeExitForm()">Cancel</button><button type="submit" class="btn btn-primary">Submit exit form</button></div></form></div></div>
 
 <div
   class="modal-overlay hidden"
@@ -2684,7 +2695,14 @@
   }
 
 
+  function recordMatches(record, search) {
+    const vals = Object.values(record).filter(x => x !== null && typeof x !== "object");
+    vals.push(getEffectiveStatus(record), formatDate(record.endDate));
+    return vals.join(" ").toLowerCase().includes(search);
+  }
+
   function isExpiringThisMonth(record) {
+    if (getEffectiveStatus(record) === "Submitted") return false;
 
     const endDate =
       parseDate(record.endDate);
@@ -3304,17 +3322,7 @@
 
         const matchesSearch =
           !search ||
-          String(
-            record.name || ""
-          )
-          .toLowerCase()
-          .includes(search) ||
-
-          String(
-            record.employeeId || ""
-          )
-          .toLowerCase()
-          .includes(search);
+          recordMatches(record, search);
 
         const matchesFilter =
           filter === "All" ||
@@ -3445,7 +3453,7 @@
         </td>
 
         <td class="actions-cell">
-          ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? `<button class="btn btn-secondary btn-small" onclick="flagCardReturn('${record.id}')">Flag card return</button>` : ""}
+          ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? (record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Retiring / Resigning</button>`) : ""}
           ${PSP_USER.group === "HR" && status === "Submitted" ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
           ${PSP_USER.group === "HR" ? "" : `
           ${
@@ -3629,19 +3637,7 @@
       records =
         records.filter(record =>
 
-          String(
-            record.name || ""
-          )
-          .toLowerCase()
-          .includes(search)
-
-          ||
-
-          String(
-            record.employeeId || ""
-          )
-          .toLowerCase()
-          .includes(search)
+          recordMatches(record, search)
 
         );
 
@@ -3929,19 +3925,7 @@
       records =
         records.filter(record =>
 
-          String(
-            record.name || ""
-          )
-          .toLowerCase()
-          .includes(search)
-
-          ||
-
-          String(
-            record.employeeId || ""
-          )
-          .toLowerCase()
-          .includes(search)
+          recordMatches(record, search)
 
         );
 
@@ -4184,19 +4168,7 @@
       records =
         records.filter(record =>
 
-          String(
-            record.name || ""
-          )
-          .toLowerCase()
-          .includes(search)
-
-          ||
-
-          String(
-            record.employeeId || ""
-          )
-          .toLowerCase()
-          .includes(search)
+          recordMatches(record, search)
 
         );
 
@@ -4615,8 +4587,7 @@
 
     if (search) {
       records = records.filter(record =>
-        String(record.name || "").toLowerCase().includes(search) ||
-        String(record.employeeId || "").toLowerCase().includes(search)
+        recordMatches(record, search)
       );
     }
 
@@ -4961,7 +4932,7 @@
             </strong>
 
             <p>
-              Upload an Excel or CSV file above.
+              ${PSP_USER.group === "HR" ? "Upload an Excel or CSV file above." : "Files uploaded by HR will appear here."}
             </p>
 
           </div>
@@ -5010,12 +4981,12 @@
 
                 <div class="batch-actions">
 
-                  <button
+                  ${PSP_USER.group === "HR" ? `<button
                     class="btn btn-danger btn-small"
                     onclick="deleteBatch('${batch.id}')"
                   >
                     Delete Batch
-                  </button>
+                  </button>` : ""}
 
                 </div>
 
@@ -5824,10 +5795,35 @@
      RENDER EVERYTHING
   ========================================================= */
 
-  function flagCardReturn(id){const found=findRecord(id);if(!found)return;const reason=prompt('Reason for card return (resignation, retirement or other):');if(!reason)return;found.record.returnRequired=true;found.record.returnReason=reason;found.record.returnFlaggedAt=new Date().toISOString();saveBatches();renderAll();}
+  let exitFormId=null;
+  function openExitForm(id){
+    if(PSP_USER.group!=='HR')return;const found=findRecord(id);if(!found)return;const r=found.record;
+    if(!/full.?time|permanent/i.test(r.holderStatus||r.position||''))return;
+    exitFormId=id;
+    document.getElementById('exitName').value=r.name||'';document.getElementById('exitDept').value=r.department||'';
+    document.getElementById('exitDate').value='';document.getElementById('exitPurpose').value='';
+    document.getElementById('exitModal').classList.remove('hidden');
+  }
+  function closeExitForm(){document.getElementById('exitModal').classList.add('hidden');exitFormId=null;}
+  function submitExitForm(e){
+    e.preventDefault();if(PSP_USER.group!=='HR'||!exitFormId)return;
+    const found=findRecord(exitFormId);if(!found)return;const r=found.record;
+    const date=document.getElementById('exitDate').value,purpose=document.getElementById('exitPurpose').value;
+    if(!date||!purpose){showToast('Enter the exit date and purpose for exit.','error');return;}
+    r.previousEndDate=r.endDate;r.endDate=date;r.exitDate=date;r.exitPurpose=purpose;
+    r.returnRequired=true;r.returnReason=purpose;r.returnFlaggedAt=new Date().toISOString();
+    addHistory('Exit form submitted',`${r.name}: ${purpose}, exit date ${date}.`);
+    saveBatches();closeExitForm();showToast('Exit form submitted. Card added to Pending Card Return.','success');renderAll();
+  }
   function confirmSubmittedID(id){const found=findRecord(id);if(!found)return;found.record.hrVerified=true;found.record.hrVerifiedAt=new Date().toISOString();saveBatches();showToast('Submitted ID confirmed by HR.','success');renderAll();}
-  function markCardReturned(id){if(!['Admin','Physical Security'].includes(PSP_USER.group))return;const found=findRecord(id);if(!found)return;if(!confirm('Confirm that this ID card has been physically returned?'))return;found.record.returnStatus='Returned';found.record.returnedAt=new Date().toISOString();saveBatches();renderAll();}
-  function renderCardReturns(){const records=allRecords().filter(r=>r.returnRequired && r.returnStatus!=='Returned');const el=document.getElementById('cardReturnTable');if(!el)return;el.innerHTML=records.length?`<table><thead><tr><th>Name</th><th>Employee ID</th><th>Email</th><th>Reason</th><th>Flagged</th><th>Status</th><th>Action</th></tr></thead><tbody>${records.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.employeeId||'—')}</td><td>${escapeHtml(r.email||'—')}</td><td>${escapeHtml(r.returnReason||'—')}</td><td>${formatDateTime(r.returnFlaggedAt)}</td><td>${escapeHtml(r.returnStatus||'Pending Card Return')}</td><td>${['Admin','Physical Security'].includes(PSP_USER.group)?`<button class="btn btn-primary btn-small" onclick="markCardReturned('${r.id}')">Mark returned</button>`:'—'}</td></tr>`).join('')}</tbody></table>`:'<div class="empty-state">No ID cards are currently awaiting return.</div>';}
+  function markCardReturned(id){if(!['Admin','Physical Security'].includes(PSP_USER.group))return;const found=findRecord(id);if(!found)return;if(!confirm('Confirm that this ID card has been physically returned?'))return;found.record.returnStatus='Returned';found.record.returnedAt=new Date().toISOString();if(found.record.status!=='Submitted'){found.record.status='Submitted';found.record.submittedAt=found.record.returnedAt;}saveBatches();renderAll();}
+  function renderCardReturns(){
+    const records=allRecords().filter(r=>{const st=getEffectiveStatus(r);return r.returnRequired&&r.returnStatus!=='Returned'&&st!=='Submitted'&&st!=='Expired'&&!isExpiringThisMonth(r);});
+    const el=document.getElementById('cardReturnTable');if(!el)return;
+    const c=document.getElementById('cardReturnCount');if(c)c.textContent=records.length;
+    const canReturn=['Admin','Physical Security'].includes(PSP_USER.group);
+    el.innerHTML=records.length?`<table><thead><tr><th>Name</th><th>Employee ID</th><th>Email</th><th>Department</th><th>Purpose for exit</th><th>Exit date</th><th>Flagged</th><th>Action</th></tr></thead><tbody>${records.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.employeeId||'—')}</td><td>${escapeHtml(r.email||'—')}</td><td>${escapeHtml(r.department||'—')}</td><td>${escapeHtml(r.exitPurpose||r.returnReason||'—')}</td><td>${formatDate(r.endDate)}</td><td>${formatDateTime(r.returnFlaggedAt)}</td><td>${canReturn?`<button class="btn btn-primary btn-small" onclick="markCardReturned('${r.id}')">Mark returned</button>`:'—'}</td></tr>`).join('')}</tbody></table>`:'<div class="empty-state">No ID cards are currently awaiting return.</div>';
+  }
 
   function renderAll() {
 
@@ -5860,16 +5856,21 @@
   if(PSP_USER.group==='HR'){
     document.querySelectorAll('.page button').forEach(el=>{
       const page=el.closest('.page')?.id;
-      const allowed=(['page-personnel','page-submittedids'].includes(page) && /Flag card return|Confirm ID received/.test(el.textContent));
+      const allowed=(['page-personnel','page-submittedids'].includes(page) && /Retiring \/ Resigning|Confirm ID received/.test(el.textContent));
       if(!allowed)el.style.display='none';
     });
     document.querySelectorAll('#page-submissions input, #page-submissions select, #page-submissions textarea, #page-settings input, #page-settings select, #page-settings textarea').forEach(el=>{if(!(el.id==='excelFile' && el.type==='file'))el.disabled=true;});
+  }
+  if(PSP_USER.group!=='HR'){
+    const box=document.getElementById('hrImportBox');if(box)box.remove();
+    const d=document.querySelector('#page-submissions .section-description');
+    if(d)d.textContent='View personnel files imported by HR. Only the HR group can upload new files.';
   }
   renderAll();
 
 </script>
 
-<script>const section=new URLSearchParams(location.search).get('section');if(section==='reports')showPage('reports');if(section==='capture')showPage('capture');if(section==='cardreturn')showPage('cardreturn');if(section==='collection'||section==='expired'){showPage('idcards');document.getElementById(section==='expired'?'expiredCardsTable':'pendingCardsTable').scrollIntoView();}</script><script>function drawReportCharts(containerId, counts){
+<script>const section=new URLSearchParams(location.search).get('section');if(section==='reports')showPage('reports');if(section==='capture')showPage('capture');if(section==='cardreturn')showPage('cardreturn');if(section==='expired'||section==='expiring'){showPage('cardreturn');document.getElementById(section==='expired'?'expiredCardsTable':'expiringCardsTable').scrollIntoView();}if(section==='collection'){showPage('idcards');document.getElementById('pendingCardsTable').scrollIntoView();}</script><script>function drawReportCharts(containerId, counts){
  const box=document.getElementById(containerId);box.replaceChildren();
  const entries=Object.entries(counts),total=entries.reduce((s,[k,n])=>s+n,0);
  if(!total){const empty=document.createElement('div');empty.className='reports-placeholder';empty.textContent='No records match these filters. Adjust your filters and generate the report again.';box.append(empty);return;}
@@ -5908,5 +5909,5 @@ async function transferSubmittedID(id,button){
   const response=await fetch('/api/icms/records/'+encodeURIComponent(id)+'/transfer',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF}});const result=await response.json();if(!response.ok)throw new Error(result.message);alert(result.message);location.reload();
  }catch(e){showToast(e.message||'Transfer failed.','error');}finally{button.disabled=false;}
 }
-</script></body>
+</script>{% include '_table_search.html' %}</body>
 </html>

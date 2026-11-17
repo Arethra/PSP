@@ -20,5 +20,5 @@
             <header class="topbar">
                 <a class="brand" href="/dashboard">
                     <img class="gbb-logo" src="{{url_for('static', filename='gbb-logo.jpg')}}" alt="Galaxy Backbone" width="128" height="72">
-                    <span>Physical Security Portal<small>Galaxy Backbone</small></span></a>{% if user %}<nav><a href="/dashboard">Dashboard</a><a href="/vms">VMS</a>{% if user.group in ["Admin","Physical Security"] %}<a href="/icms">ID Card Management</a>{% endif %}<form action="/logout" method="post"><input type="hidden" name="csrf" value="{{csrf}}"><button class="button">Sign out</button></form></nav>{% endif %}</header>{% block content %}{% endblock %}<footer>Galaxy Backbone · Physical Security</footer></body>
+                    <span>Physical Security Portal<small>Galaxy Backbone</small></span></a>{% if user %}<nav><a href="/dashboard">Dashboard</a>{% if user.group != "HR" %}<a href="/vms">VMS</a>{% endif %}{% if user.group in ["Admin","Physical Security","HR"] %}<a href="/icms">ID Card Management</a>{% endif %}<form action="/logout" method="post"><input type="hidden" name="csrf" value="{{csrf}}"><button class="button">Log out</button></form></nav>{% endif %}</header>{% block content %}{% endblock %}<footer>Galaxy Backbone · Physical Security</footer></body>
 </html>

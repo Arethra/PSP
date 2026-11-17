@@ -105,8 +105,9 @@ def group_code(v, now, visitors):
              and x['item'].get('approvalSequence') is not None) + 1
  count = max(1, sum(1 for x in visitors if x['item'].get('groupId') == group))
  end = start + count - 1
- purpose = re.sub('[^A-Za-z]', '', str(v.get('purpose') or 'VI'))[:2].title().ljust(2, 'X')
- code = f"{purpose}-{now.strftime('%d%m%y')}-{start:04d}" + (f"-{end:04d}" if count > 1 else '')
+ # Department prefix: first 3 letters of the requester's department (e.g. Finance -> FIN).
+ dept = re.sub('[^A-Za-z]', '', str(v.get('department') or 'GEN'))[:3].upper().ljust(3, 'X')
+ code = f"{dept}-{now.strftime('%d%m%y')}-{start:04d}" + (f"-{end:04d}" if count > 1 else '')
  return code, dict(approvalMonth=month, approvalSequence=start, approvedGroupCount=count)
 
 
@@ -355,7 +356,7 @@ def save_icms():
  if user()['group'] == 'HR':
   old_batches = current.get('batches', []); new_batches = data['batches']
   if len(new_batches) < len(old_batches): abort(403, description='HR cannot remove existing personnel batches.')
-  allowed = {'hrVerified', 'hrVerifiedAt', 'returnRequired', 'returnReason', 'returnFlaggedAt'}
+  allowed = {'hrVerified', 'hrVerifiedAt', 'returnRequired', 'returnReason', 'returnFlaggedAt', 'endDate', 'previousEndDate', 'exitDate', 'exitPurpose'}
   for index, old_batch in enumerate(old_batches):
    new_batch = new_batches[index]
    if any(old_batch.get(k) != new_batch.get(k) for k in set(old_batch) | set(new_batch) if k != 'records'): abort(403, description='HR cannot edit existing import batch details.')
@@ -365,12 +366,19 @@ def save_icms():
    for rid, old in old_records.items():
     new = new_records[rid]
     if any(old.get(k) != new.get(k) for k in set(old) | set(new) if k not in allowed): abort(403, description='HR can only verify submitted IDs or flag cards for return.')
+    if new.get('endDate') != old.get('endDate') and not (new.get('returnRequired') and new.get('exitDate') == new.get('endDate') and new.get('exitPurpose')): abort(403, description='HR can only change the end date through the exit form.')
     if new.get('hrVerified') and new.get('status') != 'Submitted': abort(403, description='Only submitted ID cards can be confirmed by HR.')
     if new.get('returnRequired') and not re.search(r'full.?time|permanent', str(new.get('holderStatus') or new.get('position') or ''), re.I): abort(403, description='Card return flags are limited to full-time or permanent staff.')
   for batch in new_batches[len(old_batches):]:
    for record in batch.get('records', []):
     if record.get('status') not in (None, 'Awaiting Capture') or any(record.get(k) for k in ('hrVerified', 'returnRequired', 'returnStatus')): abort(403, description='New HR imports may only create personnel awaiting capture.')
   data = {'batches': new_batches, 'history': current.get('history', [])}
+ else:
+  # Only HR may upload (add) or delete HR personnel batches/records; everyone else is view-only for uploads.
+  old_batches = current.get('batches', []); new_batches = data['batches']
+  if [b.get('id') for b in old_batches] != [b.get('id') for b in new_batches]: abort(403, description='Only HR can upload or delete HR personnel files.')
+  for ob, nb in zip(old_batches, new_batches):
+   if {x.get('id') for x in ob.get('records', [])} != {x.get('id') for x in nb.get('records', [])}: abort(403, description='Only HR can add or delete personnel records.')
  saved = sb.table('icms').update({'data': json.dumps({'batches': data['batches'], 'history': data['history']}), 'version': version + 1}).eq('id', 1).eq('version', version).execute()
  if not saved.data: abort(409, description='Another user changed ID-card records. Reload before editing.')
  return jsonify(version=version + 1)

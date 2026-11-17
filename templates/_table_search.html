@@ -1,0 +1,41 @@
+<style>
+.tbl-search{display:flex;gap:10px;align-items:center;margin:0 0 12px;padding:0}
+.tbl-search input{flex:1;max-width:420px;padding:9px 12px;border:1px solid #cbd8cf;border-radius:8px;font:inherit;font-size:14px;background:#fff}
+.tbl-search input:focus{outline:2px solid #0a6634;outline-offset:1px}
+.tbl-search .tbl-count{font-size:12px;color:#68796f}
+</style>
+<script>
+(function(){
+  /* Adds a "search any column" box above every table that has no search box of its own. */
+  var saved={};var queued=0;
+  function key(t){var h=t.parentElement&&t.parentElement.closest('[id]');var id=h?h.id:'body';var i=[].indexOf.call((h||document).querySelectorAll('table'),t);return id+':'+i;}
+  function apply(t,q,bar){
+    var rows=[];[].forEach.call(t.tBodies,function(b){[].forEach.call(b.rows,function(r){rows.push(r);});});
+    var shown=0;
+    rows.forEach(function(r){var ok=!q||r.textContent.toLowerCase().indexOf(q)>-1;r.style.display=ok?'':'none';if(ok)shown++;});
+    var c=bar.querySelector('.tbl-count');if(c)c.textContent=q?shown+' of '+rows.length+' rows':'';
+  }
+  function enhance(){
+    [].forEach.call(document.querySelectorAll('table'),function(t){
+      if(t.closest('.modal,.modal-overlay,dialog,[data-no-table-search]'))return;
+      var scope=t.closest('.page,section');
+      if(scope&&scope.querySelector('input[id$="Search"]'))return;
+      var k=key(t),bar=t.previousElementSibling;
+      if(!bar||!bar.classList||!bar.classList.contains('tbl-search')){
+        bar=document.createElement('div');bar.className='tbl-search';
+        bar.innerHTML='<input type="search" placeholder="Search any column..." aria-label="Search this table"><span class="tbl-count"></span>';
+        t.parentNode.insertBefore(bar,t);
+        bar.querySelector('input').addEventListener('input',function(e){var q=e.target.value.trim().toLowerCase();saved[k]=e.target.value;var tb=bar.nextElementSibling;if(tb&&tb.tagName==='TABLE')apply(tb,q,bar);});
+        if(saved[k])bar.querySelector('input').value=saved[k];
+      }
+      apply(t,(bar.querySelector('input').value||'').trim().toLowerCase(),bar);
+    });
+  }
+  var obs=new MutationObserver(function(){
+    if(queued)return;
+    queued=requestAnimationFrame(function(){queued=0;obs.disconnect();try{enhance();}finally{obs.observe(document.body,{childList:true,subtree:true});}});
+  });
+  function start(){enhance();obs.observe(document.body,{childList:true,subtree:true});}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+</script>
