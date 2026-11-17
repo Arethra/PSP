@@ -2695,6 +2695,11 @@
   }
 
 
+  // Full-time / permanent staff leave only through the HR exit form.
+  function isFullTimeStaff(record) {
+    return /full.?time|permanent/i.test(record.holderStatus || record.position || "");
+  }
+
   function recordMatches(record, search) {
     const vals = Object.values(record).filter(x => x !== null && typeof x !== "object");
     vals.push(getEffectiveStatus(record), formatDate(record.endDate));
@@ -3453,11 +3458,11 @@
         </td>
 
         <td class="actions-cell">
-          ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? (record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Retiring / Resigning</button>`) : ""}
+          ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? (record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exit</button>`) : ""}
           ${PSP_USER.group === "HR" && status === "Submitted" ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
           ${PSP_USER.group === "HR" ? "" : `
           ${
-            status !== "Awaiting Capture" && status !== "Submitted"
+            status !== "Awaiting Capture" && status !== "Submitted" && !isFullTimeStaff(record)
               ? `
                 <button
                   class="btn btn-primary btn-small"
@@ -3538,7 +3543,7 @@
     }
 
     // Submission is always a deliberate action. It is never triggered by expiry.
-    if (status !== "Awaiting Capture") {
+    if (status !== "Awaiting Capture" && !isFullTimeStaff(record)) {
       actions += `
         <button
           class="action-main"
@@ -5856,7 +5861,7 @@
   if(PSP_USER.group==='HR'){
     document.querySelectorAll('.page button').forEach(el=>{
       const page=el.closest('.page')?.id;
-      const allowed=(['page-personnel','page-submittedids'].includes(page) && /Retiring \/ Resigning|Confirm ID received/.test(el.textContent));
+      const allowed=(['page-personnel','page-submittedids'].includes(page) && /^Exit$|Confirm ID received/.test(el.textContent));
       if(!allowed)el.style.display='none';
     });
     document.querySelectorAll('#page-submissions input, #page-submissions select, #page-submissions textarea, #page-settings input, #page-settings select, #page-settings textarea').forEach(el=>{if(!(el.id==='excelFile' && el.type==='file'))el.disabled=true;});
