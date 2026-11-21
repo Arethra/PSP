@@ -3413,6 +3413,21 @@
     return /full\s*staff/i.test(holder) || /full.?time|permanent/i.test(holder);
   }
 
+  function isEligiblePartTimeRecord(record) {
+    const holder = String(record.holderStatus || record.position || '').trim();
+    return /contract|\bnysc\b|\bit\b|industrial\s*training/i.test(holder);
+  }
+
+  function canHRConfirmID(record, status) {
+    if (record.hrVerified) return false;
+    if (isFullTimeRecord(record)) {
+      // Full-time staff become eligible only after HR has submitted the exit form.
+      return Boolean(record.exitDate && record.returnRequired);
+    }
+    // Contract, NYSC and IT personnel are eligible at the relevant card stages.
+    return isEligiblePartTimeRecord(record) && ['Submitted', 'Expiring', 'Expiring Soon', 'Expired'].includes(status);
+  }
+
   function renderPersonnelRow(
     record
   ) {
@@ -3425,7 +3440,7 @@
       <tr>
 
         <td>
-          <div class="person-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div class="person-name">
             <span>${escapeHtml(record.name)}</span>
           </div>
         </td>
@@ -3460,10 +3475,13 @@
         </td>
 
         <td class="actions-cell">
-          ${PSP_USER.group === "HR" && isFullTimeRecord(record) && record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : ""}
-          ${PSP_USER.group === "HR" ? "" : `
-          ${PSP_USER.group === "HR" && isFullTimeRecord(record) && !record.returnRequired ? `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>` : ""}
-          ${PSP_USER.group === "HR" && status === "Submitted" && !record.hrVerified ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}          
+          ${PSP_USER.group === "HR" ? `
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              ${isFullTimeRecord(record) && !record.exitDate ? `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>` : ""}
+              ${isFullTimeRecord(record) && record.exitDate && record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.exitDate)}</span>` : ""}
+              ${canHRConfirmID(record, status) ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
+            </div>
+          ` : `
           ${
             status !== "Awaiting Capture" && status !== "Submitted"
               ? `
