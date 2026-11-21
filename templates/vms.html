@@ -498,6 +498,7 @@ select.form-control {
             <label class="form-label">Guest names document (optional)</label>
             <input type="file" class="form-control" id="f_guestDocument" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">
             <div class="form-hint">Attach a guest list for larger parties. Maximum upload size is 10 MB.</div>
+            <div id="guestDocumentPreview" class="form-hint" aria-live="polite"></div>
           </div>
           <div class="form-group" style="padding:12px;background:#f8fafc;border-radius:10px;">
             <label><input type="checkbox" id="notifyEmail" checked> Allow email notifications of requests</label>
@@ -1153,6 +1154,25 @@ function renderGuestNameFields(){
 document.getElementById('f_guestCount').addEventListener('input',renderGuestNameFields);
 renderGuestNameFields();
 
+let uploadedGuestAttachment=null;
+document.getElementById('f_guestDocument').addEventListener('change',async function(){
+  const preview=document.getElementById('guestDocumentPreview');
+  uploadedGuestAttachment=null;
+  if(!this.files.length){preview.innerHTML='';return;}
+  preview.textContent='Reading document and extracting names…';
+  try{
+    const fd=new FormData();fd.append('file',this.files[0]);
+    const response=await fetch('/api/visitors/attachment',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF},body:fd});
+    const result=await response.json();if(!response.ok)throw new Error(result.message||'Could not read this document.');
+    uploadedGuestAttachment=result;
+    const names=(result.names||[]).slice(0,100);
+    document.getElementById('f_guestCount').value=Math.max(1,names.length);
+    renderGuestNameFields();
+    [...document.querySelectorAll('.guest-name-input')].forEach((input,index)=>input.value=names[index]||'');
+    preview.innerHTML=`<strong>${names.length} name(s) detected</strong>${names.length?'<ol style="margin:6px 0 0;padding-left:22px">'+names.map(n=>`<li>${escapeHtml(n)}</li>`).join('')+'</ol>':'<div>No names were detected.</div>'}`;
+  }catch(err){preview.textContent=err.message;uploadedGuestAttachment=null;}
+});
+
 /* Time-of-day welcome message for the dashboard header */
 function getWelcomeMessage(){
   const h=new Date().getHours();
@@ -1232,9 +1252,8 @@ document.getElementById('signInForm').addEventListener('submit',async e=>{
   }
 
   const groupId=uid();
-  let attachment=null;
-  const file=document.getElementById('f_guestDocument').files[0];
-  if(file){try{const fd=new FormData();fd.append('file',file);const response=await fetch('/api/visitors/attachment',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF},body:fd});const result=await response.json();if(!response.ok)throw new Error(result.message||'Attachment upload failed');attachment=result;if(Array.isArray(result.names)&&result.names.length){const extracted=result.names.slice(0,100);document.getElementById('f_guestCount').value=extracted.length;renderGuestNameFields();[...document.querySelectorAll('.guest-name-input')].forEach((input,index)=>input.value=extracted[index]||'');guestNames=extracted;}}catch(err){showAlert(err.message,'danger');submitBtn.disabled=false;return;}}
+  let attachment=uploadedGuestAttachment;
+  if(document.getElementById('f_guestDocument').files.length&&!attachment){showAlert('Wait for the uploaded document to finish reading, then submit again.','danger');submitBtn.disabled=false;return;}
   try{await apiRequest('/api/vms/notification-preferences',{method:'PUT',body:JSON.stringify({every_action:document.getElementById('notifyEmail').checked,status_changes:document.getElementById('notifyEmail').checked})});}catch(err){showAlert(err.message,'danger');submitBtn.disabled=false;return;}
   const shared={
     notifyEveryAction:document.getElementById('notifyEmail').checked,notifyStatusChange:document.getElementById('notifyEmail').checked,
@@ -1494,21 +1513,28 @@ document.getElementById('confirmCheckIn').addEventListener('click',async()=>{
   }finally{btn.disabled=false;}
 });
 
-/* On-site */
+/* On-site: show one row per original visitor party, while retaining each guest as an independently sign-out-able record. */
 function renderOnSite(){
   const q=(document.getElementById('onsiteSearch').value||'').toLowerCase();
-  const rows=visitors.filter(v=>v.status==='checked_in').filter(v=>
-    !q||[v.fullName,v.tagNo,v.toSee,v.addressOrg,v.department].some(x=>String(x||'').toLowerCase().includes(q))
-  ).sort((a,b)=>new Date(b.timeIn||b.approvedAt||b.createdAt||0)-new Date(a.timeIn||a.approvedAt||a.createdAt||0));
+  const onsite=visitors.filter(v=>v.status==='checked_in');
+  const groups=new Map();
+  onsite.forEach(v=>{const key=v.groupId||v.id;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(v);});
+  const rows=[...groups.entries()].map(([key,members])=>({key,members,first:members.slice().sort((a,b)=>new Date(a.timeIn||0)-new Date(b.timeIn||0))[0]})).filter(g=>
+    !q||g.members.some(v=>[v.fullName,v.tagNo,v.toSee,v.addressOrg,v.department].some(x=>String(x||'').toLowerCase().includes(q)))
+  ).sort((a,b)=>new Date(b.first.timeIn||b.first.approvedAt||b.first.createdAt||0)-new Date(a.first.timeIn||a.first.approvedAt||a.first.createdAt||0));
   document.getElementById('onsiteEmpty').style.display=rows.length?'none':'block';
-  document.getElementById('onsiteTbody').innerHTML=rows.map(v=>`<tr>
-    <td>${escapeHtml(v.fullName)}</td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.phone)}</td><td>${escapeHtml(v.toSee)}</td>
-    <td>${escapeHtml(v.purpose)}</td><td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(deviceSummary(v))}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${v.tagNo?'<strong>'+escapeHtml(v.tagNo)+'</strong>':'<span class="muted">Not assigned</span>'}</td>
-    <td>${fmtTime(v.timeIn)}</td><td>${statusBadge(v.status)}</td>
-    <td>${v.status==='checked_in'&&canCheckOut()?`<button class="btn btn-outline btn-sm" onclick="openSignOutModal('${v.id}')">Sign out</button>`:''}</td>
-  </tr>`).join('');
+  document.getElementById('onsiteTbody').innerHTML=rows.map(g=>{
+    const v=g.first, names=g.members.map(x=>x.fullName).join(', '), tags=g.members.map(x=>x.tagNo).filter(Boolean).join(', ');
+    return `<tr>
+      <td><strong>${escapeHtml(names)}</strong><div class="muted">${g.members.length} of group checked in</div></td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.phone)}</td><td>${escapeHtml(v.toSee)}</td>
+      <td>${escapeHtml(v.purpose)}</td><td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(g.members.map(deviceSummary).filter(Boolean).join('; ')||'—')}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${tags?'<strong>'+escapeHtml(tags)+'</strong>':'<span class="muted">Not assigned</span>'}</td>
+      <td>${fmtTime(v.timeIn)}${g.members.length>1?`<div class="muted">${g.members.length} check-in times</div>`:''}</td><td>${statusBadge('checked_in')}</td>
+      <td>${canCheckOut()?`<button class="btn btn-outline btn-sm" onclick="openGroupSignOut('${g.key}')">Sign out</button>`:''}</td>
+    </tr>`;
+  }).join('');
 }
 document.getElementById('onsiteSearch').addEventListener('input',renderOnSite);
+
 
 /* Sign out (Security) */
 function openSignOutModal(id){
@@ -1557,11 +1583,12 @@ document.getElementById('confirmSignOut').addEventListener('click',async()=>{
 
 
 let groupSignOutIds=[];
-function openGroupSignOut(){
+function openGroupSignOut(groupKey){
  if(!canCheckOut())return;
- const onsite=visitors.filter(v=>v.status==='checked_in');
- if(!onsite.length){showAlert('There are no visitors currently checked in.','danger');return;}
- document.getElementById('groupSignOutNames').innerHTML=onsite.map(v=>`<label class="device-confirm-item"><input type="checkbox" class="group-signout-person" value="${v.id}" checked><span>${escapeHtml(v.fullName)} · Tag ${escapeHtml(v.tagNo||'—')}</span></label>`).join('');
+ const members=visitors.filter(v=>v.status==='checked_in'&&(!groupKey||(v.groupId||v.id)===groupKey));
+ if(!members.length){showAlert('There are no checked-in visitors to sign out.','danger');return;}
+ document.querySelector('#groupSignOutModal .modal-header h3').textContent=groupKey?`Sign out group · ${members.length} currently on site`:`Sign out selected visitors · ${members.length} currently on site`;
+ document.getElementById('groupSignOutNames').innerHTML=members.map(v=>`<label class="device-confirm-item"><input type="checkbox" class="group-signout-person" value="${v.id}" checked><span>${escapeHtml(v.fullName)} · Tag ${escapeHtml(v.tagNo||'—')}</span></label>`).join('');
  document.getElementById('groupSignOutComment').value='';
  document.getElementById('groupSignOutModal').classList.add('open');
 }

@@ -3198,7 +3198,7 @@
 
                 <div class="quick-detail">
                   ${escapeHtml(
-                    record.holderStatus || record.position || "—"
+                    String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")
                   )}
                 </div>
 
@@ -3431,7 +3431,7 @@
 
         <td>
           ${escapeHtml(
-            record.holderStatus || record.position || "—"
+            String(String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")).replace(/^Full Staff$/i, "Full Time")
           )}
         </td>
 
@@ -3456,7 +3456,6 @@
 
         <td class="actions-cell">
           ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? (record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>`) : ""}
-          ${PSP_USER.group === "HR" && status === "Submitted" ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
           ${PSP_USER.group === "HR" ? "" : `
           ${
             status !== "Awaiting Capture" && status !== "Submitted"
@@ -3716,7 +3715,7 @@
 
               <td>
                 ${escapeHtml(
-                  record.holderStatus || record.position || "—"
+                  String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")
                 )}
               </td>
 
@@ -3999,7 +3998,7 @@
 
               <td>
                 ${escapeHtml(
-                  record.holderStatus || record.position || "—"
+                  String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")
                 )}
               </td>
 
@@ -4242,7 +4241,7 @@
 
               <td>
                 ${escapeHtml(
-                  record.holderStatus || record.position || "—"
+                  String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")
                 )}
               </td>
 
@@ -4362,7 +4361,7 @@
 
               <td>
                 ${escapeHtml(
-                  record.holderStatus || record.position || "—"
+                  String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")
                 )}
               </td>
 
@@ -4505,7 +4504,7 @@
 
               <td>
                 ${escapeHtml(
-                  record.holderStatus || record.position || "—"
+                  String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")
                 )}
               </td>
 
@@ -4629,7 +4628,7 @@
             <tr>
               <td><div class="person-name">${escapeHtml(record.name)}</div></td>
               <td>${formatDate(record.endDate)}</td>
-              <td>${escapeHtml(record.holderStatus || record.position || "—")}</td>
+              <td>${escapeHtml(String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time"))}</td>
               <td>${record.employeeId ? escapeHtml(record.employeeId) : '<span class="muted">—</span>'}</td>
               <td>${escapeHtml(record.email || "—")}</td>
               <td>${escapeHtml(record.department || "—")}</td>
@@ -4798,9 +4797,7 @@
             row[endDateKey] || "",
 
           holderStatus:
-            String(
-              row[holderStatusKey] || ""
-            ).trim(),
+            String(row[holderStatusKey] || "").trim().replace(/^Full Staff$/i, "Full Time"),
 
           email: emailKey ? String(row[emailKey] || "").trim() : "",
 
@@ -5033,7 +5030,7 @@
 
                         <td>
                           ${escapeHtml(
-                            record.holderStatus || record.position || "—"
+                            String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")
                           )}
                         </td>
 
@@ -5477,7 +5474,7 @@
 
           <div class="detail-value">
             ${escapeHtml(
-              record.holderStatus || record.position || "—"
+              String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time")
             )}
           </div>
 

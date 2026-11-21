@@ -75,13 +75,21 @@ def extract_guest_names(file_obj, ext):
   elif ext == '.csv':
    import csv
    rows_ = list(csv.reader(io.StringIO(raw.decode('utf-8-sig'))))
-   names = [str(row[0]).strip() for row in rows_ if row and str(row[0]).strip()]
+   header_names = {'name', 'full name', 'guest name', 'visitor name'}
+   header = [str(x or '').strip().casefold() for x in rows_[0]] if rows_ else []
+   col = next((i for i, value in enumerate(header) if value in header_names), 0)
+   data_rows = rows_[1:] if header and header[col] in header_names else rows_
+   names = [str(row[col]).strip() for row in data_rows if len(row) > col and str(row[col]).strip()]
   elif ext == '.xlsx':
    from openpyxl import load_workbook
    wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
    ws = wb.active
-   names = [str(row[0]).strip() for row in ws.iter_rows(values_only=True)
-            if row and row[0] is not None and str(row[0]).strip()]
+   rows_ = list(ws.iter_rows(values_only=True))
+   header_names = {'name', 'full name', 'guest name', 'visitor name'}
+   header = [str(x or '').strip().casefold() for x in rows_[0]] if rows_ else []
+   col = next((i for i, value in enumerate(header) if value in header_names), 0)
+   data_rows = rows_[1:] if header and header[col] in header_names else rows_
+   names = [str(row[col]).strip() for row in data_rows if len(row) > col and row[col] is not None and str(row[col]).strip()]
   elif ext == '.docx':
    from docx import Document
    doc = Document(io.BytesIO(raw))
@@ -93,7 +101,11 @@ def extract_guest_names(file_obj, ext):
    import xlrd
    book = xlrd.open_workbook(file_contents=raw)
    sheet = book.sheet_by_index(0)
-   names = [str(sheet.cell_value(r, 0)).strip() for r in range(sheet.nrows) if str(sheet.cell_value(r, 0)).strip()]
+   header_names = {'name', 'full name', 'guest name', 'visitor name'}
+   header = [str(sheet.cell_value(0, c)).strip().casefold() for c in range(sheet.ncols)] if sheet.nrows else []
+   col = next((i for i, value in enumerate(header) if value in header_names), 0)
+   first_data_row = 1 if header and header[col] in header_names else 0
+   names = [str(sheet.cell_value(r, col)).strip() for r in range(first_data_row, sheet.nrows) if str(sheet.cell_value(r, col)).strip()]
   elif ext == '.doc':
    raise ValueError('Legacy .doc files cannot be read for automatic name extraction. Please save the document as .docx or PDF and upload it again.')
   elif ext == '.pdf':
