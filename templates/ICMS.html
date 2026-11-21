@@ -3426,8 +3426,6 @@
 
         <td>
           <div class="person-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            ${PSP_USER.group === "HR" && isFullTimeRecord(record) && !record.returnRequired ? `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>` : ""}
-            ${PSP_USER.group === "HR" && status === "Submitted" && !record.hrVerified ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
             <span>${escapeHtml(record.name)}</span>
           </div>
         </td>
@@ -3464,6 +3462,8 @@
         <td class="actions-cell">
           ${PSP_USER.group === "HR" && isFullTimeRecord(record) && record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : ""}
           ${PSP_USER.group === "HR" ? "" : `
+          ${PSP_USER.group === "HR" && isFullTimeRecord(record) && !record.returnRequired ? `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>` : ""}
+          ${PSP_USER.group === "HR" && status === "Submitted" && !record.hrVerified ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}          
           ${
             status !== "Awaiting Capture" && status !== "Submitted"
               ? `
