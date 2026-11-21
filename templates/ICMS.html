@@ -2302,8 +2302,10 @@
 <div class="modal-body" style="display:grid;gap:14px">
 <label>Staff name<input id="exitName" type="text" readonly style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px;background:#f3f6f4"></label>
 <label>Department<input id="exitDept" type="text" readonly style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px;background:#f3f6f4"></label>
+<label>Employee ID<input id="exitEmployeeId" type="text" readonly style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px;background:#f3f6f4"></label>
+<label>Email address<input id="exitEmail" type="email" readonly style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px;background:#f3f6f4"></label>
 <label>Exit date (becomes the card expiry date)<input id="exitDate" type="date" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
-<label>Purpose for exit<select id="exitPurpose" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"><option value="">Select purpose</option><option>Retirement</option><option>Resignation</option><option>Termination</option><option>Other exit</option></select></label>
+<label>Purpose for exit<select id="exitPurpose" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"><option value="">Select purpose</option><option>Retirement</option><option>Resignation</option><option>Termination / Dismissal</option></select></label>
 </div><div class="modal-footer" style="gap:10px"><button type="button" class="btn btn-secondary" onclick="closeExitForm()">Cancel</button><button type="submit" class="btn btn-primary">Submit exit form</button></div></form></div></div>
 
 <div
@@ -3453,7 +3455,7 @@
         </td>
 
         <td class="actions-cell">
-          ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? (record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Retiring / Resigning</button>`) : ""}
+          ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? (record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>`) : ""}
           ${PSP_USER.group === "HR" && status === "Submitted" ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
           ${PSP_USER.group === "HR" ? "" : `
           ${
@@ -5800,7 +5802,7 @@
     if(PSP_USER.group!=='HR')return;const found=findRecord(id);if(!found)return;const r=found.record;
     if(!/full.?time|permanent/i.test(r.holderStatus||r.position||''))return;
     exitFormId=id;
-    document.getElementById('exitName').value=r.name||'';document.getElementById('exitDept').value=r.department||'';
+    document.getElementById('exitName').value=r.name||'';document.getElementById('exitDept').value=r.department||'';document.getElementById('exitEmployeeId').value=r.employeeId||'';document.getElementById('exitEmail').value=r.email||'';
     document.getElementById('exitDate').value='';document.getElementById('exitPurpose').value='';
     document.getElementById('exitModal').classList.remove('hidden');
   }
@@ -5810,7 +5812,7 @@
     const found=findRecord(exitFormId);if(!found)return;const r=found.record;
     const date=document.getElementById('exitDate').value,purpose=document.getElementById('exitPurpose').value;
     if(!date||!purpose){showToast('Enter the exit date and purpose for exit.','error');return;}
-    r.previousEndDate=r.endDate;r.endDate=date;r.exitDate=date;r.exitPurpose=purpose;
+    r.previousEndDate=r.endDate;r.endDate=date;r.exitDate=date;r.exitPurpose=purpose;r.exitCategory=purpose;
     r.returnRequired=true;r.returnReason=purpose;r.returnFlaggedAt=new Date().toISOString();
     addHistory('Exit form submitted',`${r.name}: ${purpose}, exit date ${date}.`);
     saveBatches();closeExitForm();showToast('Exit form submitted. Card added to Pending Card Return.','success');renderAll();
@@ -5856,7 +5858,7 @@
   if(PSP_USER.group==='HR'){
     document.querySelectorAll('.page button').forEach(el=>{
       const page=el.closest('.page')?.id;
-      const allowed=(['page-personnel','page-submittedids'].includes(page) && /Retiring \/ Resigning|Confirm ID received/.test(el.textContent));
+      const allowed=(['page-personnel','page-submittedids'].includes(page) && /Exiting Staff|Retiring \/ Resigning|Confirm ID received/.test(el.textContent));
       if(!allowed)el.style.display='none';
     });
     document.querySelectorAll('#page-submissions input, #page-submissions select, #page-submissions textarea, #page-settings input, #page-settings select, #page-settings textarea').forEach(el=>{if(!(el.id==='excelFile' && el.type==='file'))el.disabled=true;});

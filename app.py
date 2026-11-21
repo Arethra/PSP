@@ -63,6 +63,52 @@ def get_icms():
  return r
 
 
+
+def extract_guest_names(file_obj, ext):
+ """Extract one guest name per non-empty row/line from common document formats."""
+ raw = file_obj.read()
+ names = []
+ try:
+  if ext == '.txt':
+   text = raw.decode('utf-8-sig')
+   names = [x.strip() for x in text.splitlines() if x.strip()]
+  elif ext == '.csv':
+   import csv
+   rows_ = list(csv.reader(io.StringIO(raw.decode('utf-8-sig'))))
+   names = [str(row[0]).strip() for row in rows_ if row and str(row[0]).strip()]
+  elif ext == '.xlsx':
+   from openpyxl import load_workbook
+   wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+   ws = wb.active
+   names = [str(row[0]).strip() for row in ws.iter_rows(values_only=True)
+            if row and row[0] is not None and str(row[0]).strip()]
+  elif ext == '.docx':
+   from docx import Document
+   doc = Document(io.BytesIO(raw))
+   names = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+   for table in doc.tables:
+    for row in table.rows:
+     if row.cells and row.cells[0].text.strip(): names.append(row.cells[0].text.strip())
+  elif ext == '.xls':
+   import xlrd
+   book = xlrd.open_workbook(file_contents=raw)
+   sheet = book.sheet_by_index(0)
+   names = [str(sheet.cell_value(r, 0)).strip() for r in range(sheet.nrows) if str(sheet.cell_value(r, 0)).strip()]
+  elif ext == '.doc':
+   raise ValueError('Legacy .doc files cannot be read for automatic name extraction. Please save the document as .docx or PDF and upload it again.')
+  elif ext == '.pdf':
+   from pypdf import PdfReader
+   reader = PdfReader(io.BytesIO(raw))
+   text = '\n'.join(page.extract_text() or '' for page in reader.pages)
+   names = [x.strip() for x in text.splitlines() if x.strip()]
+ except ImportError as exc:
+  raise ValueError(f'Document extraction dependency is missing: {exc.name}')
+ except Exception as exc:
+  raise ValueError('The uploaded document could not be read. Use a text-based PDF, DOCX, XLSX, CSV or TXT file.')
+ # Remove common header labels and duplicate blank noise; keep names in document order.
+ names = [n for n in names if n.casefold() not in ('name', 'full name', 'guest name', 'visitor name')]
+ return names
+
 def client_ip():
  # Behind Vercel, remote_addr is the proxy. Set TRUST_PROXY=1 to use the forwarded client IP.
  if os.environ.get('TRUST_PROXY') == '1':
@@ -260,6 +306,13 @@ def visitor_attachment():
  if ext not in ('.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'): abort(400, description='Unsupported attachment type.')
  bucket = os.environ.get('SUPABASE_STORAGE_BUCKET', 'private-uploads')
  name = secrets.token_hex(16) + ext
+ try:
+  f.stream.seek(0)
+  extracted_names = extract_guest_names(f.stream, ext)
+  if not extracted_names: abort(400, description='No names could be extracted. Upload a text-based guest list with one name per line or in the first column.')
+ except ValueError as exc:
+  abort(400, description=str(exc))
+ f.stream.seek(0)
  storage_path = f"{quote(bucket, safe='')}/{quote(name, safe='')}"
  headers = {'apikey': SUPABASE_KEY, 'Authorization': f'Bearer {SUPABASE_KEY}',
             'Content-Type': f.mimetype or 'application/octet-stream', 'x-upsert': 'false'}
@@ -270,7 +323,7 @@ def visitor_attachment():
  except requests.RequestException:
   app.logger.exception('Supabase attachment upload failed')
   abort(502, description='The attachment could not be stored. Check Supabase Storage configuration.')
- return jsonify(filename=f.filename, stored=name), 201
+ return jsonify(filename=f.filename, stored=name, names=extracted_names), 201
 
 
 @app.get('/api/visitors/attachment/<filename>')
@@ -356,7 +409,7 @@ def save_icms():
  if user()['group'] == 'HR':
   old_batches = current.get('batches', []); new_batches = data['batches']
   if len(new_batches) < len(old_batches): abort(403, description='HR cannot remove existing personnel batches.')
-  allowed = {'hrVerified', 'hrVerifiedAt', 'returnRequired', 'returnReason', 'returnFlaggedAt', 'endDate', 'previousEndDate', 'exitDate', 'exitPurpose'}
+  allowed = {'hrVerified', 'hrVerifiedAt', 'returnRequired', 'returnReason', 'returnFlaggedAt', 'endDate', 'previousEndDate', 'exitDate', 'exitPurpose', 'exitCategory'}
   for index, old_batch in enumerate(old_batches):
    new_batch = new_batches[index]
    if any(old_batch.get(k) != new_batch.get(k) for k in set(old_batch) | set(new_batch) if k != 'records'): abort(403, description='HR cannot edit existing import batch details.')
