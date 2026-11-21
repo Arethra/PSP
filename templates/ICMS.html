@@ -3408,6 +3408,11 @@
   }
 
 
+  function isFullTimeRecord(record) {
+    const holder = String(record.holderStatus || record.position || '').trim();
+    return /full\s*staff/i.test(holder) || /full.?time|permanent/i.test(holder);
+  }
+
   function renderPersonnelRow(
     record
   ) {
@@ -3420,8 +3425,10 @@
       <tr>
 
         <td>
-          <div class="person-name">
-            ${escapeHtml(record.name)}
+          <div class="person-name" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            ${PSP_USER.group === "HR" && isFullTimeRecord(record) && !record.returnRequired ? `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>` : ""}
+            ${PSP_USER.group === "HR" && status === "Submitted" && !record.hrVerified ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
+            <span>${escapeHtml(record.name)}</span>
           </div>
         </td>
 
@@ -3455,7 +3462,7 @@
         </td>
 
         <td class="actions-cell">
-          ${PSP_USER.group === "HR" && /full.?time|permanent/i.test(record.holderStatus || record.position || "") ? (record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>`) : ""}
+          ${PSP_USER.group === "HR" && isFullTimeRecord(record) && record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.endDate)}</span>` : ""}
           ${PSP_USER.group === "HR" ? "" : `
           ${
             status !== "Awaiting Capture" && status !== "Submitted"
@@ -5797,7 +5804,7 @@
   let exitFormId=null;
   function openExitForm(id){
     if(PSP_USER.group!=='HR')return;const found=findRecord(id);if(!found)return;const r=found.record;
-    if(!/full.?time|permanent/i.test(r.holderStatus||r.position||''))return;
+    if(!isFullTimeRecord(r))return;
     exitFormId=id;
     document.getElementById('exitName').value=r.name||'';document.getElementById('exitDept').value=r.department||'';document.getElementById('exitEmployeeId').value=r.employeeId||'';document.getElementById('exitEmail').value=r.email||'';
     document.getElementById('exitDate').value='';document.getElementById('exitPurpose').value='';

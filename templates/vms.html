@@ -1513,7 +1513,7 @@ document.getElementById('confirmCheckIn').addEventListener('click',async()=>{
   }finally{btn.disabled=false;}
 });
 
-/* On-site: show one row per original visitor party, while retaining each guest as an independently sign-out-able record. */
+/* On-site: one row per original visitor party; members remain independently sign-out-able. */
 function renderOnSite(){
   const q=(document.getElementById('onsiteSearch').value||'').toLowerCase();
   const onsite=visitors.filter(v=>v.status==='checked_in');
@@ -1524,10 +1524,12 @@ function renderOnSite(){
   ).sort((a,b)=>new Date(b.first.timeIn||b.first.approvedAt||b.first.createdAt||0)-new Date(a.first.timeIn||a.first.approvedAt||a.first.createdAt||0));
   document.getElementById('onsiteEmpty').style.display=rows.length?'none':'block';
   document.getElementById('onsiteTbody').innerHTML=rows.map(g=>{
-    const v=g.first, names=g.members.map(x=>x.fullName).join(', '), tags=g.members.map(x=>x.tagNo).filter(Boolean).join(', ');
+    const v=g.first, names=g.members.map(x=>x.fullName).join(', '), tags=[...new Set(g.members.map(x=>String(x.tagNo||'').trim()).filter(Boolean))].join(', ');
+    const checkedDevices=g.members.map(x=>deviceSummary(x)).filter(x=>x && x!=='No devices');
+    const devices=checkedDevices.length?[...new Set(checkedDevices)].join('; '):'No devices';
     return `<tr>
       <td><strong>${escapeHtml(names)}</strong><div class="muted">${g.members.length} of group checked in</div></td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.phone)}</td><td>${escapeHtml(v.toSee)}</td>
-      <td>${escapeHtml(v.purpose)}</td><td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(g.members.map(deviceSummary).filter(Boolean).join('; ')||'—')}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${tags?'<strong>'+escapeHtml(tags)+'</strong>':'<span class="muted">Not assigned</span>'}</td>
+      <td>${escapeHtml(v.purpose)}</td><td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(devices)}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${tags?'<strong>'+escapeHtml(tags)+'</strong>':'<span class="muted">Not assigned</span>'}</td>
       <td>${fmtTime(v.timeIn)}${g.members.length>1?`<div class="muted">${g.members.length} check-in times</div>`:''}</td><td>${statusBadge('checked_in')}</td>
       <td>${canCheckOut()?`<button class="btn btn-outline btn-sm" onclick="openGroupSignOut('${g.key}')">Sign out</button>`:''}</td>
     </tr>`;
@@ -1588,7 +1590,10 @@ function openGroupSignOut(groupKey){
  const members=visitors.filter(v=>v.status==='checked_in'&&(!groupKey||(v.groupId||v.id)===groupKey));
  if(!members.length){showAlert('There are no checked-in visitors to sign out.','danger');return;}
  document.querySelector('#groupSignOutModal .modal-header h3').textContent=groupKey?`Sign out group · ${members.length} currently on site`:`Sign out selected visitors · ${members.length} currently on site`;
- document.getElementById('groupSignOutNames').innerHTML=members.map(v=>`<label class="device-confirm-item"><input type="checkbox" class="group-signout-person" value="${v.id}" checked><span>${escapeHtml(v.fullName)} · Tag ${escapeHtml(v.tagNo||'—')}</span></label>`).join('');
+ document.getElementById('groupSignOutNames').innerHTML=members.map(v=>{
+   const devices=deviceSummary(v);
+   return `<label class="device-confirm-item"><input type="checkbox" class="group-signout-person" value="${v.id}" checked><span><strong>${escapeHtml(v.fullName)}</strong> · Tag ${escapeHtml(v.tagNo||'—')}<br><span class="device-sub">Devices brought in: ${escapeHtml(devices)}</span></span></label>`;
+ }).join('');
  document.getElementById('groupSignOutComment').value='';
  document.getElementById('groupSignOutModal').classList.add('open');
 }
