@@ -447,7 +447,7 @@ select.form-control {
             <div class="form-group">
               <label class="form-label">Number of guests <span class="req">*</span></label>
               <input type="number" class="form-control" id="f_guestCount" min="1" max="100" value="1" required>
-              <div class="form-hint">A name field appears for each guest in the party.</div>
+              <div class="form-hint">Enter the total number of guests listed in the attached document.</div>
             </div>
             <div class="form-group">
               <label class="form-label">Phone number <span class="req">*</span></label>
@@ -456,8 +456,19 @@ select.form-control {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Guest name(s) <span class="req">*</span></label>
-            <div id="guestNamesContainer"></div>
+            <label class="form-label">Guest names document</label>
+            <input type="file" class="form-control" id="f_guestDocument" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">
+            <div id="guestDocumentFile" style="display:none;align-items:center;gap:10px;margin-top:8px;">
+              <span id="guestDocumentName" style="font-size:.875rem;word-break:break-all;"></span>
+              <button type="button" class="btn btn-danger-outline btn-sm" id="removeGuestDocument">Delete file</button>
+            </div>
+            <div class="form-hint">Optional. Names found in the document are filled into the guest name fields below automatically. Maximum upload size is 10 MB.</div>
+            <div id="guestDocumentPreview" class="form-hint" aria-live="polite"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Guest names <span class="req">*</span></label>
+            <div id="guestNameFields"></div>
+            <div class="form-hint">One field per guest. If the number of guests is more than the names in the document, enter the remaining names here.</div>
           </div>
 
           <div class="form-group">
@@ -494,12 +505,6 @@ select.form-control {
             <input type="text" class="form-control" id="f_purpose" required autocomplete="off" placeholder="e.g. Meeting, Delivery, Interview, Maintenance">
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Guest names document (optional)</label>
-            <input type="file" class="form-control" id="f_guestDocument" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">
-            <div class="form-hint">Attach a guest list for larger parties. Maximum upload size is 10 MB.</div>
-            <div id="guestDocumentPreview" class="form-hint" aria-live="polite"></div>
-          </div>
           <div class="form-group" style="padding:12px;background:#f8fafc;border-radius:10px;">
             <label><input type="checkbox" id="notifyEmail" checked> Allow email notifications of requests</label>
           </div>
@@ -1144,34 +1149,82 @@ document.getElementById('checkInLaptop').addEventListener('change',()=>{
   }
 });
 
-/* Sign-in form: one name field per guest */
-function renderGuestNameFields(){
-  const count=Math.max(1,Math.min(100,Number(document.getElementById('f_guestCount').value)||1));
-  const container=document.getElementById('guestNamesContainer');
-  const existing=[...container.querySelectorAll('.guest-name-input')].map(i=>i.value);
-  container.innerHTML=Array.from({length:count},(_,i)=>`<input type="text" class="form-control guest-name-input" style="margin-bottom:.6rem;" placeholder="Guest ${i+1} full name" value="${escapeHtml(existing[i]||'')}" required autocomplete="off">`).join('');
-}
-document.getElementById('f_guestCount').addEventListener('input',renderGuestNameFields);
-renderGuestNameFields();
-
+/* Sign-in form: one name field per guest; names read from an uploaded document fill the fields automatically. */
 let uploadedGuestAttachment=null;
-document.getElementById('f_guestDocument').addEventListener('change',async function(){
+const guestNameFields=document.getElementById('guestNameFields');
+const guestCountInput=document.getElementById('f_guestCount');
+const guestDocInput=document.getElementById('f_guestDocument');
+
+function guestCountValue(){return Math.max(1,Math.min(100,Math.floor(Number(guestCountInput.value))||1));}
+
+/* Keep exactly N name inputs, preserving what has already been typed. */
+function renderGuestNameFields(){
+  const n=guestCountValue();
+  while(guestNameFields.children.length<n){
+    const i=guestNameFields.children.length+1;
+    const input=document.createElement('input');
+    input.type='text';input.className='form-control guest-name-input';input.required=true;input.autocomplete='off';
+    input.placeholder=`Guest ${i} full name`;input.setAttribute('aria-label',`Guest ${i} name`);
+    input.style.marginBottom='8px';
+    input.addEventListener('input',()=>{delete input.dataset.auto;});
+    guestNameFields.appendChild(input);
+  }
+  while(guestNameFields.children.length>n)guestNameFields.lastElementChild.remove();
+}
+
+/* Put document names into the fields in order, raising the guest count if the document has more names. */
+function fillGuestNames(names){
+  if(names.length>guestCountValue())guestCountInput.value=Math.min(100,names.length);
+  renderGuestNameFields();
+  const inputs=[...guestNameFields.children];
+  names.slice(0,inputs.length).forEach((name,i)=>{inputs[i].value=name;inputs[i].dataset.auto='1';});
+}
+
+function clearAutoFilledNames(){
+  [...guestNameFields.children].forEach(i=>{if(i.dataset.auto){i.value='';delete i.dataset.auto;}});
+}
+
+function resetGuestDocumentUi(){
+  uploadedGuestAttachment=null;guestDocInput.value='';
+  document.getElementById('guestDocumentFile').style.display='none';
+  document.getElementById('guestDocumentPreview').innerHTML='';
+}
+
+guestCountInput.addEventListener('input',renderGuestNameFields);
+guestCountInput.addEventListener('change',()=>{guestCountInput.value=guestCountValue();renderGuestNameFields();});
+
+/* Delete the stored copy (if any) and clear what the document filled in. */
+async function removeGuestDocument(){
+  const stored=uploadedGuestAttachment&&uploadedGuestAttachment.stored;
+  resetGuestDocumentUi();clearAutoFilledNames();
+  if(!stored)return;
+  try{await apiRequest('/api/visitors/attachment/'+encodeURIComponent(stored),{method:'DELETE'});}
+  catch(err){showAlert('The document was removed from the form, but deleting the stored copy failed: '+err.message,'danger');}
+}
+document.getElementById('removeGuestDocument').addEventListener('click',removeGuestDocument);
+
+guestDocInput.addEventListener('change',async function(){
   const preview=document.getElementById('guestDocumentPreview');
-  uploadedGuestAttachment=null;
-  if(!this.files.length){preview.innerHTML='';return;}
+  const file=this.files[0];
+  // Replacing a document: drop the previous one first.
+  const previous=uploadedGuestAttachment&&uploadedGuestAttachment.stored;
+  uploadedGuestAttachment=null;clearAutoFilledNames();
+  if(previous){try{await apiRequest('/api/visitors/attachment/'+encodeURIComponent(previous),{method:'DELETE'});}catch(_){}}
+  if(!file){resetGuestDocumentUi();return;}
   preview.textContent='Reading document and extracting names…';
   try{
-    const fd=new FormData();fd.append('file',this.files[0]);
+    const fd=new FormData();fd.append('file',file);
     const response=await fetch('/api/visitors/attachment',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF},body:fd});
     const result=await response.json();if(!response.ok)throw new Error(result.message||'Could not read this document.');
     uploadedGuestAttachment=result;
     const names=(result.names||[]).slice(0,100);
-    document.getElementById('f_guestCount').value=Math.max(1,names.length);
-    renderGuestNameFields();
-    [...document.querySelectorAll('.guest-name-input')].forEach((input,index)=>input.value=names[index]||'');
-    preview.innerHTML=`<strong>${names.length} name(s) detected</strong>${names.length?'<ol style="margin:6px 0 0;padding-left:22px">'+names.map(n=>`<li>${escapeHtml(n)}</li>`).join('')+'</ol>':'<div>No names were detected.</div>'}`;
-  }catch(err){preview.textContent=err.message;uploadedGuestAttachment=null;}
+    document.getElementById('guestDocumentName').textContent=result.filename;
+    document.getElementById('guestDocumentFile').style.display='flex';
+    fillGuestNames(names);
+    preview.textContent=names.length+' name(s) added to the guest name fields.'+(names.length<guestCountValue()?` Enter the remaining ${guestCountValue()-names.length} name(s) below.`:'');
+  }catch(err){preview.textContent=err.message;uploadedGuestAttachment=null;guestDocInput.value='';}
 });
+renderGuestNameFields();
 
 /* Time-of-day welcome message for the dashboard header */
 function getWelcomeMessage(){
@@ -1244,12 +1297,9 @@ document.getElementById('signInForm').addEventListener('submit',async e=>{
   if(!canSignVisitor())return;
   const submitBtn=e.target.querySelector('button[type="submit"]');submitBtn.disabled=true;
 
-  let guestNames=[...document.querySelectorAll('.guest-name-input')].map(i=>i.value.trim());
-  if(!guestNames.length||guestNames.some(n=>!n)){
-    showAlert('Enter a name for every guest.','danger');
-    submitBtn.disabled=false;
-    return;
-  }
+  const guestCount=guestCountValue();
+  const guestNames=[...guestNameFields.children].map(i=>i.value.trim());
+  if(guestNames.length!==guestCount||guestNames.some(n=>!n)){showAlert(`Enter a name for each of the ${guestCount} guest(s).`,'danger');submitBtn.disabled=false;return;}
 
   const groupId=uid();
   let attachment=uploadedGuestAttachment;
@@ -1264,7 +1314,7 @@ document.getElementById('signInForm').addEventListener('submit',async e=>{
     purpose:document.getElementById('f_purpose').value.trim(),
     floor:document.getElementById('f_floor').value,
     department:document.getElementById('f_department').value.trim(),
-    tagNo:'',timeIn:null,timeOut:null,status:'pending',
+    guestCount,tagNo:'',timeIn:null,timeOut:null,status:'pending',
     deviceInfo:'',createdAt:new Date().toISOString(),groupId,guestAttachment:attachment
   };
 
@@ -1285,7 +1335,7 @@ document.getElementById('signInForm').addEventListener('submit',async e=>{
       ? (guestNames.length>1?`Visitor request submitted for ${successCount} guests (logged as one request) and saved for approval.`:'Visitor request submitted and saved for approval.')
       : `${successCount} of ${guestNames.length} guest requests were saved.`,'success');
     e.target.reset();
-    renderGuestNameFields();
+    resetGuestDocumentUi();renderGuestNameFields();
     refreshAllViews();
   }
   submitBtn.disabled=false;

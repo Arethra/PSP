@@ -1,7 +1,0 @@
-Flask
-requests
-supabase
-pypdf
-python-docx
-openpyxl
-xlrd

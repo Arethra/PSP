@@ -6,9 +6,9 @@ from supabase import create_client
 from datetime import datetime, timedelta
 from flask import Flask, request, session, jsonify, redirect, render_template, abort, g
 from werkzeug.security import generate_password_hash, check_password_hash
-from dotenv import load_dotenv
+""" from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv() """
 
 
 app = Flask(__name__)
@@ -133,23 +133,101 @@ def client_ip():
  return request.remote_addr or 'unknown'
 
 
-def send_mail(to, subject, body):
- host = os.environ.get('SMTP_HOST'); sender = os.environ.get('SMTP_FROM')
- if not to or not host or not sender: return False
- from email.message import EmailMessage
- msg = EmailMessage(); msg['From'] = sender; msg['To'] = to; msg['Subject'] = subject; msg.set_content(body)
+def format_mail_datetime(value):
+ """Format stored ISO timestamps for human-readable email notifications."""
+ if not value:
+  value = datetime.now().astimezone().isoformat()
  try:
-  mode = os.environ.get('SMTP_SECURITY', 'starttls')
-  if mode not in ('starttls', 'ssl'): return False
+  parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+  return parsed.astimezone().strftime('%d %B %Y, %I:%M %p')
+ except (TypeError, ValueError):
+  return str(value)
+
+
+def send_mail(to, subject, body):
+ """Send a VMS notification as a readable HTML email with a plain-text fallback."""
+ host = (os.environ.get('SMTP_HOST') or '').strip()
+ sender = (os.environ.get('SMTP_FROM') or '').strip()
+ if not to:
+  app.logger.error('VMS email not sent: recipient address is missing.')
+  return False
+ if not host or not sender:
+  app.logger.error('VMS email not sent: SMTP_HOST and SMTP_FROM must be configured in the deployment environment.')
+  return False
+ from email.message import EmailMessage
+ from html import escape
+ msg = EmailMessage()
+ msg['From'] = sender
+ msg['To'] = to
+ msg['Subject'] = subject
+ msg.set_content(body)
+ rows = []
+ paragraphs = []
+ for line in body.splitlines():
+  line = line.strip()
+  if not line:
+   continue
+  if ':' in line:
+   label, value = line.split(':', 1)
+   rows.append(f'<tr><th style="text-align:left;padding:11px 14px;color:#52605a;background:#f5f8f6;border-bottom:1px solid #e5ebe7;width:38%;">{escape(label.strip())}</th><td style="padding:11px 14px;border-bottom:1px solid #e5ebe7;color:#17211c;">{escape(value.strip())}</td></tr>')
+  else:
+   paragraphs.append(f'<p style="margin:0 0 14px;color:#26332c;line-height:1.6;">{escape(line)}</p>')
+ html = ('<!doctype html><html><body style="margin:0;padding:28px 12px;background:#f3f6f4;font-family:Arial,Helvetica,sans-serif;color:#17211c;">'
+  '<div style="max-width:620px;margin:0 auto;background:#fff;border:1px solid #e1e8e3;border-radius:12px;overflow:hidden;">'
+  f'<div style="padding:22px 26px;background:#174d36;color:#fff;"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;opacity:.85;">Physical Security Portal</div><h2 style="margin:8px 0 0;font-size:21px;">{escape(subject)}</h2></div>'
+  f'<div style="padding:25px 26px;">{"".join(paragraphs)}'
+  + (('<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:16px 0;">' + ''.join(rows) + '</table>') if rows else '')
+  + '<p style="margin:22px 0 0;color:#718078;font-size:12px;">This is an automated notification from the Physical Security Portal.</p></div></div></body></html>')
+ msg.add_alternative(html, subtype='html')
+ try:
+  mode = (os.environ.get('SMTP_SECURITY') or 'starttls').strip().lower()
+  if mode not in ('starttls', 'ssl'):
+   raise ValueError('SMTP_SECURITY must be either starttls or ssl.')
   port = int(os.environ.get('SMTP_PORT', '465' if mode == 'ssl' else '587'))
-  conn = smtplib.SMTP_SSL(host, port, timeout=15, context=ssl.create_default_context()) if mode == 'ssl' else smtplib.SMTP(host, port, timeout=15)
+  username = (os.environ.get('SMTP_USERNAME') or '').strip()
+  password = os.environ.get('SMTP_PASSWORD') or ''
+  if bool(username) != bool(password):
+   raise ValueError('Set both SMTP_USERNAME and SMTP_PASSWORD, or leave both empty.')
+  conn = (smtplib.SMTP_SSL(host, port, timeout=20, context=ssl.create_default_context()) if mode == 'ssl' else smtplib.SMTP(host, port, timeout=20))
   with conn as smtp:
-   if mode == 'starttls': smtp.starttls(context=ssl.create_default_context())
-   if os.environ.get('SMTP_USERNAME'): smtp.login(os.environ['SMTP_USERNAME'], os.environ.get('SMTP_PASSWORD', ''))
-   smtp.send_message(msg)
+   smtp.ehlo()
+   if mode == 'starttls':
+    smtp.starttls(context=ssl.create_default_context()); smtp.ehlo()
+   if username: smtp.login(username, password)
+   refused = smtp.send_message(msg)
+   if refused:
+    app.logger.error('VMS email refused by SMTP server for recipient(s): %s', ', '.join(refused)); return False
+  app.logger.info('VMS email accepted by SMTP server: recipient=%s subject=%s', to, subject)
   return True
  except Exception:
-  app.logger.exception('VMS notification email failed'); return False
+  app.logger.exception('VMS notification email failed: recipient=%s subject=%s', to, subject)
+  return False
+
+
+def email_field_lines(v):
+ """Build a readable copy of the submitted visitor request for approval emails."""
+ fields = [('Visitor name(s)', v.get('fullName')), ('Number of guests', v.get('guestCount')), ('Phone number', v.get('phone')), ('Address / Organisation', v.get('addressOrg')), ('Whom to see', v.get('toSee')), ('Floor', v.get('floor')), ('Department', v.get('department')), ('Purpose of visit', v.get('purpose'))]
+ lines = [f'{label}: {value}' for label, value in fields if value not in (None, '')]
+ attachment = v.get('guestAttachment') or {}
+ if attachment.get('filename'): lines.append(f'Guest list document: {attachment["filename"]}')
+ return '\n'.join(lines)
+
+
+def visitor_devices(v):
+ """Return the devices recorded for this visitor at check-in."""
+ items = []
+ if v.get('laptop'):
+  label = 'Laptop'
+  if v.get('laptopQuantity'):
+   label += f' x{v["laptopQuantity"]}'
+  if v.get('laptopModel'):
+   label += f' ({v["laptopModel"]})'
+  if v.get('laptopDetail'):
+   label += f' — {v["laptopDetail"]}'
+  items.append(label)
+ if v.get('otherDevice'):
+  items.append(str(v.get('otherDeviceDetails') or 'Other device'))
+ return ', '.join(items) if items else 'No devices logged'
 
 
 def group_code(v, now, visitors):
@@ -335,18 +413,46 @@ def visitor_attachment():
  try:
   response = requests.post(f"{SUPABASE_URL}/storage/v1/object/{storage_path}",
                            headers=headers, data=f.read(), timeout=30)
-  response.raise_for_status()
+  if not response.ok:
+   app.logger.error('Supabase attachment upload failed: status=%s bucket=%s body=%s', response.status_code, bucket, response.text[:500])
+   hint = {404: f'Storage bucket "{bucket}" was not found. Create it in Supabase Storage or set SUPABASE_STORAGE_BUCKET.',
+           401: 'Supabase rejected the key. Check SUPABASE_SERVICE_ROLE_KEY.', 403: 'Supabase rejected the key. Check SUPABASE_SERVICE_ROLE_KEY.'}.get(response.status_code)
+   abort(502, description=hint or f'The attachment could not be stored (Supabase returned {response.status_code}). Check the server log.')
  except requests.RequestException:
   app.logger.exception('Supabase attachment upload failed')
-  abort(502, description='The attachment could not be stored. Check Supabase Storage configuration.')
+  abort(502, description='The attachment could not be stored. Check SUPABASE_URL and network access.')
+ # Remember which files this session uploaded so only they can be removed before submission.
+ session['pending_uploads'] = (session.get('pending_uploads', []) + [name])[-20:]
  return jsonify(filename=f.filename, stored=name, names=extracted_names), 201
+
+
+@app.delete('/api/visitors/attachment/<filename>')
+def delete_visitor_attachment(filename):
+ require('Admin', 'Physical Security', 'Staff')
+ safe = os.path.basename(filename)
+ pending = session.get('pending_uploads', [])
+ # Only a file uploaded in this session that no visitor request refers to may be deleted.
+ if safe not in pending: abort(404)
+ if any((x['item'].get('guestAttachment') or {}).get('stored') == safe for x in all_visitors()):
+  abort(409, description='This document is attached to a submitted request and cannot be deleted.')
+ bucket = os.environ.get('SUPABASE_STORAGE_BUCKET', 'private-uploads')
+ storage_path = f"{quote(bucket, safe='')}/{quote(safe, safe='')}"
+ headers = {'apikey': SUPABASE_KEY, 'Authorization': f'Bearer {SUPABASE_KEY}'}
+ try:
+  response = requests.delete(f"{SUPABASE_URL}/storage/v1/object/{storage_path}", headers=headers, timeout=30)
+  if response.status_code != 404: response.raise_for_status()
+ except requests.RequestException:
+  app.logger.exception('Supabase attachment delete failed')
+  abort(502, description='The attachment could not be deleted from storage.')
+ session['pending_uploads'] = [x for x in pending if x != safe]
+ return jsonify(deleted=True)
 
 
 @app.get('/api/visitors/attachment/<filename>')
 def download_visitor_attachment(filename):
  from flask import send_file
  safe = os.path.basename(filename)
- found = [(x['owner'], x['item']) for x in all_visitors() if x['item'].get('guestAttachment', {}).get('stored') == safe]
+ found = [(x['owner'], x['item']) for x in all_visitors() if (x['item'].get('guestAttachment') or {}).get('stored') == safe]
  if not found: abort(404)
  if user()['group'] not in ('Admin', 'Physical Security') and not any(owner == user()['email'] for owner, item in found): abort(403)
  bucket = os.environ.get('SUPABASE_STORAGE_BUCKET', 'private-uploads')
@@ -358,7 +464,7 @@ def download_visitor_attachment(filename):
  except requests.RequestException:
   app.logger.exception('Supabase attachment download failed')
   abort(502, description='The attachment could not be retrieved from storage.')
- download_name = found[0][1].get('guestAttachment', {}).get('filename', safe)
+ download_name = (found[0][1].get('guestAttachment') or {}).get('filename', safe)
  return send_file(io.BytesIO(response.content), as_attachment=True, download_name=download_name)
 
 
@@ -396,23 +502,59 @@ def change(id, action=None):
    i = x['item']
    if i.get('status') == 'checked_in' and str(i.get('tagNo')) == tag and (i.get('groupId') or i.get('id')) != mine:
     abort(409, description='Tag is already in use.')
-  for k in ('tagNo', 'laptop', 'laptopQuantity', 'laptopModel', 'laptopDetails', 'otherDevice', 'otherDeviceDetails', 'remarks'):
+  for k in ('tagNo', 'laptop', 'laptopQuantity', 'laptopModel', 'laptopDetail', 'laptopDetails', 'otherDevice', 'otherDeviceDetails', 'remarks'):
    if k in data: v[k] = data[k]
   v['timeIn'] = now
+  v['checkedInBy'] = user()['email']
  if target == 'checked_out':
   v['timeOut'] = now
-  for k in ('signature', 'signOutRemarks', 'signOutComment'):
+  v['checkedOutBy'] = user()['email']
+  for k in ('signature', 'signOutRemarks', 'signOutComment', 'laptopReturned', 'otherDeviceReturned'):
    if k in data: v[k] = data[k]
  v['status'] = target
  saved = sb.table('visitors').update({'data': json.dumps(v), 'rev': rev + 1}).eq('id', id).eq('rev', rev).execute()
  if not saved.data: abort(409, description='This visitor was changed by someone else. Reload and try again.')
  for oid, item in others:
   sb.table('visitors').update({'data': json.dumps(item)}).eq('id', oid).execute()
+ # Send event emails only after the visitor record has been saved successfully.
+ # These three operational notifications are not suppressed by optional preferences.
  if target == 'approved':
-  email_sent = send_mail(v.get('requestEmail'), 'Visitor request approved', f"Your visitor request has been approved.\nApproval code: {v.get('approvalCode')}\nPurpose: {v.get('purpose', '')}\nDate: {now}")
- if target in ('checked_in', 'checked_out', 'rejected'):
-  notify_requester(v, 'Visitor request status updated', f"Visitor: {v.get('fullName', '')}\nStatus: {target.replace('_', ' ').title()}\nCode: {v.get('approvalCode') or 'Pending'}\nComment: {v.get('signOutComment') or v.get('rejectionReason') or ''}\nTime: {now}")
- return jsonify(visitor=v, emailSent=email_sent)
+  approval_body = (
+   'Your visitor request has been approved.\n\n'
+   f'{email_field_lines(v)}\n\n'
+   f'Generated approval code: {v.get("approvalCode") or "—"}\n'
+   f'Time and date: {format_mail_datetime(now)}'
+  )
+  email_sent = send_mail(v.get('requestEmail'), 'Visitor request approved', approval_body)
+ elif target == 'checked_in':
+  email_sent = send_mail(
+   v.get('requestEmail'), 'Visitor checked in',
+   'Your visitor has been checked in.\n\n'
+   f'Visitor name: {v.get("fullName") or "—"}\n'
+   f'Tag number: {v.get("tagNo") or "—"}\n'
+   f'Time and date: {format_mail_datetime(v.get("timeIn") or now)}\n'
+   f'Devices logged: {visitor_devices(v)}'
+  )
+ elif target == 'checked_out':
+  returned = []
+  if v.get('laptop'):
+   returned.append(f'Laptop: {"logged out" if v.get("laptopReturned") else "return not confirmed"}')
+  if v.get('otherDevice'):
+   returned.append(f'{v.get("otherDeviceDetails") or "Other device"}: {"logged out" if v.get("otherDeviceReturned") else "return not confirmed"}')
+  email_sent = send_mail(
+   v.get('requestEmail'), 'Visitor checked out',
+   'Your visitor has been checked out.\n\n'
+   f'Visitor name: {v.get("fullName") or "—"}\n'
+   f'Time and date: {format_mail_datetime(v.get("timeOut") or now)}\n'
+   f'Devices logged out: {", ".join(returned) if returned else "No devices were logged at check-in"}'
+  )
+ elif target == 'rejected':
+  email_sent = send_mail(
+   v.get('requestEmail'), 'Visitor request rejected',
+   f'Your visitor request was rejected.\nReason: {v.get("rejectionReason") or "Not specified"}\nTime and date: {format_mail_datetime(now)}'
+  )
+ return jsonify(visitor=v, emailSent=email_sent,
+                emailMessage=('Email accepted by SMTP server.' if email_sent else 'Email was not sent. Check SMTP configuration and application logs.'))
 
 
 @app.route('/api/icms', methods=['PUT'])
@@ -424,10 +566,15 @@ def save_icms():
  current = json.loads(get_icms()['data'])
  if user()['group'] == 'HR':
   old_batches = current.get('batches', []); new_batches = data['batches']
-  if len(new_batches) < len(old_batches): abort(403, description='HR cannot remove existing personnel batches.')
+  # Match batches by id, not position: new imports are added at the front of the list.
+  new_by_id = {b.get('id'): b for b in new_batches}
+  old_ids = {b.get('id') for b in old_batches}
+  if len(new_by_id) != len(new_batches): abort(400, description='Duplicate batch ids.')
+  # HR may delete whole batches; any batch that remains must be unchanged apart from the allowed record fields.
   allowed = {'hrVerified', 'hrVerifiedAt', 'returnRequired', 'returnReason', 'returnFlaggedAt', 'endDate', 'previousEndDate', 'exitDate', 'exitPurpose', 'exitCategory'}
-  for index, old_batch in enumerate(old_batches):
-   new_batch = new_batches[index]
+  for old_batch in old_batches:
+   new_batch = new_by_id.get(old_batch.get('id'))
+   if new_batch is None: continue  # batch deleted by HR
    if any(old_batch.get(k) != new_batch.get(k) for k in set(old_batch) | set(new_batch) if k != 'records'): abort(403, description='HR cannot edit existing import batch details.')
    old_records = {x.get('id'): x for x in old_batch.get('records', [])}
    new_records = {x.get('id'): x for x in new_batch.get('records', [])}
@@ -438,7 +585,7 @@ def save_icms():
     if new.get('endDate') != old.get('endDate') and not (new.get('returnRequired') and new.get('exitDate') == new.get('endDate') and new.get('exitPurpose')): abort(403, description='HR can only change the end date through the exit form.')
     if new.get('hrVerified') and new.get('status') != 'Submitted': abort(403, description='Only submitted ID cards can be confirmed by HR.')
     if new.get('returnRequired') and not re.search(r'full.?time|permanent', str(new.get('holderStatus') or new.get('position') or ''), re.I): abort(403, description='Card return flags are limited to full-time or permanent staff.')
-  for batch in new_batches[len(old_batches):]:
+  for batch in (b for b in new_batches if b.get('id') not in old_ids):
    for record in batch.get('records', []):
     if record.get('status') not in (None, 'Awaiting Capture') or any(record.get(k) for k in ('hrVerified', 'returnRequired', 'returnStatus')): abort(403, description='New HR imports may only create personnel awaiting capture.')
   data = {'batches': new_batches, 'history': current.get('history', [])}
