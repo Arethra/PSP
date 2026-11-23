@@ -6,6 +6,10 @@ from supabase import create_client
 from datetime import datetime, timedelta
 from flask import Flask, request, session, jsonify, redirect, render_template, abort, g
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 app = Flask(__name__)
 key = os.environ.get('SECRET_KEY')
