@@ -6,9 +6,9 @@ from supabase import create_client
 from datetime import datetime, timedelta
 from flask import Flask, request, session, jsonify, redirect, render_template, abort, g
 from werkzeug.security import generate_password_hash, check_password_hash
-""" from dotenv import load_dotenv
+from dotenv import load_dotenv
 
-load_dotenv() """
+load_dotenv()
 
 
 app = Flask(__name__)
@@ -27,6 +27,28 @@ if not SUPABASE_URL or not SUPABASE_KEY:
  raise RuntimeError('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.')
 
 GROUPS = ['Admin', 'Physical Security', 'Reception', 'Staff', 'HR']
+
+# Department name -> code used at the start of the visitor approval code.
+DEPARTMENTS = [
+ ('Technical Services', 'TS'),
+ ('Human Resources', 'HR'),
+ ('Finance & Accounting (Fin.Con., Treasury, Fin. Ops., Credit control)', 'F&A'),
+ ('Cooperate Services', 'CS'),
+ ('facilities/fleet Mg.', 'FFM'),
+ ('Physical Security', 'PS'),
+ ('Sales and Marketing', 'S&M'),
+ ('Customer support services', 'CSS'),
+ ('Revenue Assurance', 'RA'),
+ ('Research, Digital Innovation & Skills', 'RDIS'),
+ ('Information Security & Business Continuity', 'ISBC'),
+ ('Procurement, Logistics & Supply chain', 'PLS'),
+ ('Mandate Integration & Corporate Strategy (MICS)', 'MICS'),
+ ('Special Project', 'SP'),
+ ('Internal Audit', 'IA'),
+ ("MD's Office", 'MDO'),
+ ('Legal/Com. Sec.', 'Legal'),
+]
+DEPARTMENT_CODES = dict(DEPARTMENTS)
 
 # All database access goes over HTTPS (PostgREST), so no direct/IPv6 Postgres connection is needed.
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -169,7 +191,9 @@ def send_mail(to, subject, body):
    continue
   if ':' in line:
    label, value = line.split(':', 1)
-   rows.append(f'<tr><th style="text-align:left;padding:11px 14px;color:#52605a;background:#f5f8f6;border-bottom:1px solid #e5ebe7;width:38%;">{escape(label.strip())}</th><td style="padding:11px 14px;border-bottom:1px solid #e5ebe7;color:#17211c;">{escape(value.strip())}</td></tr>')
+   value = value.strip()
+   cell = (f'<a href="{escape(value)}" style="color:#174d36;font-weight:bold;">{escape(value)}</a>' if re.fullmatch(r'https?://\S+', value) else escape(value))
+   rows.append(f'<tr><th style="text-align:left;padding:11px 14px;color:#52605a;background:#f5f8f6;border-bottom:1px solid #e5ebe7;width:38%;">{escape(label.strip())}</th><td style="padding:11px 14px;border-bottom:1px solid #e5ebe7;color:#17211c;">{cell}</td></tr>')
   else:
    paragraphs.append(f'<p style="margin:0 0 14px;color:#26332c;line-height:1.6;">{escape(line)}</p>')
  html = ('<!doctype html><html><body style="margin:0;padding:28px 12px;background:#f3f6f4;font-family:Arial,Helvetica,sans-serif;color:#17211c;">'
@@ -204,13 +228,52 @@ def send_mail(to, subject, body):
   return False
 
 
-def email_field_lines(v):
+def email_field_lines(v, names=None):
  """Build a readable copy of the submitted visitor request for approval emails."""
- fields = [('Visitor name(s)', v.get('fullName')), ('Number of guests', v.get('guestCount')), ('Phone number', v.get('phone')), ('Address / Organisation', v.get('addressOrg')), ('Whom to see', v.get('toSee')), ('Floor', v.get('floor')), ('Department', v.get('department')), ('Purpose of visit', v.get('purpose'))]
+ fields = [('Visitor name(s)', ', '.join(names) if names else v.get('fullName')), ('Number of guests', v.get('guestCount')), ('Phone number', v.get('phone')), ('Address / Organisation', v.get('addressOrg')), ('Whom to see', v.get('toSee')), ('Floor', v.get('floor')), ('Department', v.get('department')), ('Purpose of visit', v.get('purpose'))]
  lines = [f'{label}: {value}' for label, value in fields if value not in (None, '')]
  attachment = v.get('guestAttachment') or {}
  if attachment.get('filename'): lines.append(f'Guest list document: {attachment["filename"]}')
  return '\n'.join(lines)
+
+
+EMAIL_RE = re.compile(r'[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+')
+
+
+def send_mail_async(items):
+ """Send several (to, subject, body) emails in the background so a request is not held up by SMTP."""
+ import threading
+ items = list(items)
+ if not items: return
+ def run():
+  for to, subject, body in items:
+   try: send_mail(to, subject, body)
+   except Exception: app.logger.exception('Background email failed: %s', to)
+ threading.Thread(target=run, daemon=True).start()
+
+
+def group_member_names(everyone, group):
+ """Names of every guest submitted together in one request, alphabetical."""
+ return sorted({str(x['item'].get('fullName') or '').strip() for x in everyone
+                if (x['item'].get('groupId') or x['id']) == group and str(x['item'].get('fullName') or '').strip()},
+               key=str.casefold)
+
+
+def icms_capture_mails(old, new):
+ """Capture-reminder emails for records that have just become 'Awaiting Capture' (new imports)."""
+ before = {r.get('id'): (r.get('status') or 'Awaiting Capture')
+           for b in old.get('batches', []) for r in b.get('records', [])}
+ out = []
+ for b in new.get('batches', []):
+  for r in b.get('records', []):
+   email = str(r.get('email') or '').strip()
+   if (r.get('status') or 'Awaiting Capture') != 'Awaiting Capture' or before.get(r.get('id')) == 'Awaiting Capture' or not EMAIL_RE.fullmatch(email): continue
+   lines = [f'Dear {r.get("name") or "colleague"},', '',
+            'It is time for your ID card capture. Please visit Physical Security at your earliest convenience so your photo and details can be captured.', '']
+   for label, key in (('Name', 'name'), ('Employee ID', 'employeeId'), ('Department', 'department'), ('Card valid until', 'endDate')):
+    if r.get(key): lines.append(f'{label}: {r[key]}')
+   out.append((email, 'ID card capture - action required', '\n'.join(lines)))
+ return out
 
 
 def visitor_devices(v):
@@ -245,8 +308,9 @@ def group_code(v, now, visitors):
              and x['item'].get('approvalSequence') is not None) + 1
  count = max(1, sum(1 for x in visitors if x['item'].get('groupId') == group))
  end = start + count - 1
- # Department prefix: first 3 letters of the requester's department (e.g. Finance -> FIN).
- dept = re.sub('[^A-Za-z]', '', str(v.get('department') or 'GEN'))[:3].upper().ljust(3, 'X')
+ # Department prefix: the code of the selected department (e.g. Finance & Accounting -> F&A).
+ # Older requests that predate the dropdown fall back to the first 3 letters of the typed department.
+ dept = DEPARTMENT_CODES.get(v.get('department')) or re.sub('[^A-Za-z]', '', str(v.get('department') or 'GEN'))[:3].upper().ljust(3, 'X')
  code = f"{dept}-{now.strftime('%d%m%y')}-{start:04d}" + (f"-{end:04d}" if count > 1 else '')
  return code, dict(approvalMonth=month, approvalSequence=start, approvedGroupCount=count)
 
@@ -274,6 +338,7 @@ def protect():
  if request.method not in ('GET', 'HEAD', 'OPTIONS') and not secrets.compare_digest(request.headers.get('X-CSRF-Token', request.form.get('csrf', '')), session['csrf']): abort(403)
  if request.path not in ('/', '/login') and not request.path.startswith('/static/') and not user():
   if request.path.startswith('/api/'): abort(401)
+  if request.method == 'GET': session['next'] = request.full_path.rstrip('?')
   return redirect('/login')
 
 
@@ -322,8 +387,9 @@ def login():
  if not r or not check_password_hash(r['password'], password):
   sb.table('attempts').insert({'ip': ip, 't': now}).execute()
   return render_template('login.html', error='Invalid email or password.'), 401
+ nxt = session.get('next') or ''
  session.clear(); session['email'] = email; session['csrf'] = secrets.token_hex(32); session.permanent = True
- return redirect('/dashboard')
+ return redirect(nxt if nxt.startswith('/') and not nxt.startswith('//') and not nxt.startswith('/login') else '/dashboard')
 
 
 @app.post('/logout')
@@ -333,6 +399,8 @@ def logout(): session.clear(); return redirect('/login')
 @app.get('/dashboard')
 def dashboard():
  gr = user()['group']; v = rows(); tiles = []
+ if gr != 'HR': tiles.append(('Sign in visitor', 'VMS', '/vms?section=signin', 'Register a single visitor or group'))
+ if gr == 'HR': tiles.append(('Upload new staff list', 'ICMS', '/icms?section=submissions', 'Import a new personnel list'))
  if gr in ('Admin', 'Physical Security'): tiles.append(('Generate reports', 'VMS / ICMS', '#report-chooser', 'Choose an application'))
  if gr in ('Admin', 'Staff'): tiles.append(('My pending requests' if gr == 'Staff' else 'Pending requests', 'VMS', '/vms?section=' + ('staff-log&status=pending' if gr == 'Staff' else 'approvals'), sum(x.get('status') == 'pending' for x in v)))
  if gr != 'HR': tiles.append(('My visitors on site' if gr == 'Staff' else 'Visitors on site', 'VMS', '/vms?section=' + ('staff-log&status=checked_in' if gr == 'Staff' else 'onsite'), sum(x.get('status') == 'checked_in' for x in v)))
@@ -355,7 +423,7 @@ def dashboard():
 @app.get('/vms')
 def vms():
  require('Admin', 'Physical Security', 'Reception', 'Staff')
- return render_template('vms.html')
+ return render_template('vms.html', departments=DEPARTMENTS)
 
 
 @app.route('/api/vms/notification-preferences', methods=['GET', 'PUT'])
@@ -383,9 +451,21 @@ def visitors():
  if request.method == 'GET':
   require('Admin', 'Physical Security', 'Reception', 'Staff')
   return jsonify(rows())
- require('Admin', 'Physical Security', 'Staff'); v = request.get_json(silent=True)
+ require('Admin', 'Physical Security', 'Reception', 'Staff'); v = request.get_json(silent=True)
  if not isinstance(v, dict) or not v.get('fullName'): abort(400, description='Visitor name is required.')
- v.update(id=secrets.token_hex(16), requestEmail=user()['email'], status='pending', timeIn=None, timeOut=None, approvedAt=None, approvedBy=None, tagNo='', approvalCode=None, createdAt=v.get('createdAt') or datetime.now().astimezone().isoformat())
+ if v.get('department') and v.get('department') not in DEPARTMENT_CODES: abort(400, description='Choose a department from the list.')
+ now = datetime.now().astimezone().isoformat()
+ # Resubmissions create new records; enforce ownership of the source request.
+ source_key = (v.get('resubmitOf') or '').strip()
+ if source_key:
+  source_rows = [x for x in all_visitors() if (x['item'].get('groupId') or x['item'].get('id')) == source_key]
+  if not source_rows: abort(404, description='The original visitor request could not be found.')
+  source_owner = source_rows[0]['owner']
+  source_group = source_rows[0]['item'].get('requesterGroup') or (fetch_one('users', email=source_owner) or {}).get('group_name')
+  if source_owner != user()['email'] and not (user()['group'] == 'Admin' and source_group == 'Physical Security'):
+   abort(403, description='Only the original requester may edit and resubmit this request. Admin may resubmit requests submitted by Physical Security.')
+ direct_checkin = bool(v.get('skipApproval')) and user()['group'] == 'Physical Security'
+ v.update(id=secrets.token_hex(16), requesterGroup=user()['group'], requestEmail=user()['email'], status='checked_in' if direct_checkin else 'pending', timeIn=now if direct_checkin else None, timeOut=None, approvedAt=None, approvedBy=None, checkedInBy=user()['email'] if direct_checkin else None, tagNo='', approvalCode=None, createdAt=v.get('createdAt') or now)
  sb.table('visitors').insert({'id': v['id'], 'owner': user()['email'], 'data': json.dumps(v)}).execute()
  return jsonify(visitor=v), 201
 
@@ -473,14 +553,29 @@ def download_visitor_attachment(filename):
 def change(id, action=None):
  data = request.get_json(silent=True) or {}
  if action in ('check-in', 'check-out'): require('Admin', 'Physical Security')
+ elif action == 'route': require('Admin', 'Reception')
  else: require('Admin')
  r = fetch_one('visitors', id=id)
  if not r: abort(404)
  raw = r['data']; rev = r.get('rev') or 0  # rev is the optimistic-lock token when saving
  v = json.loads(raw); old = v['status']; now = datetime.now().astimezone().isoformat()
  target = {'reject': 'rejected', 'check-in': 'checked_in', 'check-out': 'checked_out'}.get(action, data.get('status'))
+ if action == 'route':
+  if not data.get('toSee') or not data.get('floor') or not data.get('department'): abort(400, description='Reception must enter whom the visitor is seeing, floor and department.')
+  if data.get('department') not in DEPARTMENT_CODES: abort(400, description='Choose a valid department.')
+  v.update(toSee=data['toSee'].strip(), floor=data['floor'], department=data['department'], routedBy=user()['email'], routedAt=now)
+  saved = sb.table('visitors').update({'data': json.dumps(v), 'rev': rev + 1}).eq('id', id).eq('rev', rev).execute()
+  if not saved.data: abort(409, description='This visitor was changed by someone else. Reload and try again.')
+  group = v.get('groupId') or id
+  for member in all_visitors():
+   if member['id'] == id: continue
+   item = member['item']
+   if (item.get('groupId') == group or member['id'] == group) and item.get('status') == old:
+    item.update(toSee=data['toSee'].strip(), floor=data['floor'], department=data['department'], routedBy=user()['email'], routedAt=now)
+    sb.table('visitors').update({'data': json.dumps(item)}).eq('id', member['id']).execute()
+  return jsonify(visitor=v)
  if (old, target) not in [('pending', 'approved'), ('pending', 'rejected'), ('approved', 'checked_in'), ('checked_in', 'checked_out')]: abort(409, description='Invalid visitor status transition.')
- email_sent = None; others = []
+ email_sent = None; others = []; group_names = None
  if target == 'approved':
   everyone = all_visitors()
   v.update(approvedAt=now, approvedBy=user()['email'])
@@ -493,7 +588,18 @@ def change(id, action=None):
     item.update(meta, status='approved', approvedAt=now, approvedBy=user()['email'], approvalCode=code)
     others.append((x['id'], item))
   v.update(meta, approvalCode=code)
- if target == 'rejected': v.update(rejectedAt=now, rejectedBy=user()['email'], rejectionReason=data.get('reason', ''))
+  # Every guest in the request, so the approval email lists the whole group.
+  group_names = group_member_names(everyone, group)
+ if target == 'rejected':
+  v.update(rejectedAt=now, rejectedBy=user()['email'], rejectionReason=data.get('reason', ''))
+  everyone = all_visitors(); group = v.get('groupId') or v['id']
+  group_names = group_member_names(everyone, group)
+  # Reject the whole request at once so the requester gets a single email.
+  for x in everyone:
+   item = x['item']
+   if x['id'] != id and (item.get('groupId') == group or x['id'] == group) and item.get('status') == 'pending':
+    item.update(status='rejected', rejectedAt=now, rejectedBy=user()['email'], rejectionReason=data.get('reason', ''))
+    others.append((x['id'], item))
  if target == 'checked_in':
   tag = str(data.get('tagNo', ''))
   if not tag.isdigit() or not 0 <= int(tag) <= 100: abort(400, description='Choose a valid tag.')
@@ -521,7 +627,7 @@ def change(id, action=None):
  if target == 'approved':
   approval_body = (
    'Your visitor request has been approved.\n\n'
-   f'{email_field_lines(v)}\n\n'
+   f'{email_field_lines(v, group_names)}\n\n'
    f'Generated approval code: {v.get("approvalCode") or "—"}\n'
    f'Time and date: {format_mail_datetime(now)}'
   )
@@ -551,7 +657,11 @@ def change(id, action=None):
  elif target == 'rejected':
   email_sent = send_mail(
    v.get('requestEmail'), 'Visitor request rejected',
-   f'Your visitor request was rejected.\nReason: {v.get("rejectionReason") or "Not specified"}\nTime and date: {format_mail_datetime(now)}'
+   'Your visitor request was rejected. Please read the comment below, then use the link to edit the form and submit it again.\n\n'
+   f'{email_field_lines(v, group_names)}\n\n'
+   f'Comment: {v.get("rejectionReason") or "Not specified"}\n'
+   f'Time and date: {format_mail_datetime(now)}\n'
+   f'Edit and resubmit: {(os.environ.get("APP_BASE_URL") or request.url_root).rstrip("/")}/vms?resubmit={quote(v.get("groupId") or v["id"], safe="")}'
   )
  return jsonify(visitor=v, emailSent=email_sent,
                 emailMessage=('Email accepted by SMTP server.' if email_sent else 'Email was not sent. Check SMTP configuration and application logs.'))
@@ -571,7 +681,7 @@ def save_icms():
   old_ids = {b.get('id') for b in old_batches}
   if len(new_by_id) != len(new_batches): abort(400, description='Duplicate batch ids.')
   # HR may delete whole batches; any batch that remains must be unchanged apart from the allowed record fields.
-  allowed = {'hrVerified', 'hrVerifiedAt', 'returnRequired', 'returnReason', 'returnFlaggedAt', 'endDate', 'previousEndDate', 'exitDate', 'exitPurpose', 'exitCategory'}
+  allowed = {'hrVerified', 'hrVerifiedAt', 'returnRequired', 'returnReason', 'returnFlaggedAt', 'endDate', 'previousEndDate', 'exitDate', 'exitPurpose', 'exitCategory', 'name', 'employeeId', 'email', 'department', 'courseOfStudy', 'holderStatus', 'position', 'phone', 'address'}
   for old_batch in old_batches:
    new_batch = new_by_id.get(old_batch.get('id'))
    if new_batch is None: continue  # batch deleted by HR
@@ -581,13 +691,27 @@ def save_icms():
    if set(old_records) != set(new_records): abort(403, description='HR cannot add or delete records inside an existing batch.')
    for rid, old in old_records.items():
     new = new_records[rid]
-    if any(old.get(k) != new.get(k) for k in set(old) | set(new) if k not in allowed): abort(403, description='HR can only verify submitted IDs or flag cards for return.')
+    if any(old.get(k) != new.get(k) for k in set(old) | set(new) if k not in allowed): abort(403, description='HR may edit personnel details, verify submitted IDs or flag cards for return.')
     if new.get('endDate') != old.get('endDate') and not (new.get('returnRequired') and new.get('exitDate') == new.get('endDate') and new.get('exitPurpose')): abort(403, description='HR can only change the end date through the exit form.')
     if new.get('hrVerified') and new.get('status') != 'Submitted': abort(403, description='Only submitted ID cards can be confirmed by HR.')
     if new.get('returnRequired') and not re.search(r'full.?time|permanent', str(new.get('holderStatus') or new.get('position') or ''), re.I): abort(403, description='Card return flags are limited to full-time or permanent staff.')
+  existing_keys = set()
+  for old_batch in old_batches:
+   for record in old_batch.get('records', []):
+    for field in ('employeeId', 'email'):
+     value = str(record.get(field) or '').strip().casefold()
+     if value: existing_keys.add((field, value))
+  incoming_keys = set()
   for batch in (b for b in new_batches if b.get('id') not in old_ids):
    for record in batch.get('records', []):
     if record.get('status') not in (None, 'Awaiting Capture') or any(record.get(k) for k in ('hrVerified', 'returnRequired', 'returnStatus')): abort(403, description='New HR imports may only create personnel awaiting capture.')
+    for field in ('employeeId', 'email'):
+     value = str(record.get(field) or '').strip().casefold()
+     if value:
+      key = (field, value)
+      if key in existing_keys or key in incoming_keys:
+       abort(409, description=f'Duplicate staff {field.replace("employeeId", "employee ID")}: {value}. Remove duplicate rows before uploading.')
+      incoming_keys.add(key)
   data = {'batches': new_batches, 'history': current.get('history', [])}
  else:
   # Only HR may upload (add) or delete HR personnel batches/records; everyone else is view-only for uploads.
@@ -597,7 +721,24 @@ def save_icms():
    if {x.get('id') for x in ob.get('records', [])} != {x.get('id') for x in nb.get('records', [])}: abort(403, description='Only HR can add or delete personnel records.')
  saved = sb.table('icms').update({'data': json.dumps({'batches': data['batches'], 'history': data['history']}), 'version': version + 1}).eq('id', 1).eq('version', version).execute()
  if not saved.data: abort(409, description='Another user changed ID-card records. Reload before editing.')
+ send_mail_async(icms_capture_mails(current, data))
  return jsonify(version=version + 1)
+
+
+@app.post('/api/icms/records/<record_id>/notify-ready')
+def notify_ready(record_id):
+ require('Admin', 'Physical Security')
+ state = json.loads(get_icms()['data'])
+ record = next((r for b in state['batches'] for r in b.get('records', []) if r.get('id') == record_id), None)
+ if record is None: abort(404)
+ if record.get('status') != 'Pending': abort(409, description='This ID card is not marked ready.')
+ email = str(record.get('email') or '').strip()
+ if not EMAIL_RE.fullmatch(email): return jsonify(emailSent=False, message='No valid email address is recorded for this person.')
+ lines = [f'Dear {record.get("name") or "colleague"},', '', 'Your ID card is ready. Please come to Physical Security to collect it.', '']
+ for label, key in (('Name', 'name'), ('Employee ID', 'employeeId'), ('Card valid until', 'endDate')):
+  if record.get(key): lines.append(f'{label}: {record[key]}')
+ ok = send_mail(email, 'Your ID card is ready', '\n'.join(lines))
+ return jsonify(emailSent=ok, message='Email sent.' if ok else 'Email was not sent. Check SMTP configuration and server logs.')
 
 
 @app.get('/api/icms/transfer-config')

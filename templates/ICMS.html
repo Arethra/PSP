@@ -1223,13 +1223,12 @@
         <span class="nav-label">Dashboard</span>
       </button>
 
+      {% if user.group != 'Admin' %}<button class="nav-item" data-page="submissions">
+        <span class="nav-label">HR Uploads</span>
+      </button>{% endif %}
+
       <button class="nav-item" data-page="personnel">
         <span class="nav-label">All Staff</span>
-      </button>
-
-      <button class="nav-item" data-page="submissions">
-        <span class="nav-label">HR Uploads</span>
-
       </button>
 
       <button class="nav-item" data-page="capture">
@@ -1574,30 +1573,10 @@
           </div>
 
 
-          <div class="card">
-
-            <div class="card-header">
-
-              <h2>
-                Recent HR Uploads
-              </h2>
-
-              <button
-                class="btn btn-secondary btn-small"
-                onclick="showPage('submissions')"
-              >
-                View All
-              </button>
-
-            </div>
-
-            <div
-              class="card-body"
-              id="recentSubmissions"
-            >
-            </div>
-
-          </div>
+          {% if user.group != 'Admin' %}<div class="card">
+            <div class="card-header"><h2>Recent HR Uploads</h2><button class="btn btn-secondary btn-small" onclick="showPage('submissions')">View All</button></div>
+            <div class="card-body" id="recentSubmissions"></div>
+          </div>{% endif %}
 
         </div>
 
@@ -1830,12 +1809,33 @@
         </div>
 
         <p class="section-description">
-          Manage cards ready for issuance and issued cards.
+          Manage captured personnel, cards ready for issuance and issued cards.
         </p>
 
 
+        <!-- CAPTURED (card not yet ready) -->
+        <div class="id-card-section">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2>Captured</h2>
+                <div class="muted" style="font-size:13px;margin-top:3px;">
+                  Personnel who have been captured. Click Ready once the ID card is ready, and the person will be emailed.
+                </div>
+              </div>
+              <span class="status-badge status-captured" id="capturedSectionCount">0</span>
+            </div>
+            <div class="card-body" style="padding-bottom:10px;">
+              <div class="toolbar">
+                <div class="search-box">
+                  <input id="capturedSearch" type="text" placeholder="Search any column (name, ID, department, status...)">
+                </div>
+              </div>
+            </div>
+            <div class="table-wrap" id="capturedCardsTable"></div>
+          </div>
+        </div>
         <!-- PENDING COLLECTION -->
-
         <div class="id-card-section">
 
           <div class="card">
@@ -2297,6 +2297,19 @@
      DETAILS MODAL
 ========================== -->
 
+<div class="modal-overlay hidden" id="personnelEditModal"><div class="modal" style="width:min(620px,100%)"><form onsubmit="submitPersonnelEdit(event)">
+<div class="modal-header"><h2>Edit personnel details</h2><button type="button" class="modal-close" onclick="closePersonnelEdit()">×</button></div>
+<div class="modal-body" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+<label>Name<input id="editStaffName" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
+<label>Employee ID<input id="editStaffEmployeeId" style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
+<label>Email<input id="editStaffEmail" type="email" style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
+<label>Phone<input id="editStaffPhone" style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
+<label>Department<input id="editStaffDepartment" style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
+<label>Course of study<input id="editStaffCourse" style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
+<label>Staff category<input id="editStaffHolder" style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
+
+</div><div class="modal-footer" style="gap:10px"><button type="button" class="btn btn-secondary" onclick="closePersonnelEdit()">Cancel</button><button type="submit" class="btn btn-primary">Save changes</button></div></form></div></div>
+
 <div class="modal-overlay hidden" id="exitModal"><div class="modal" style="width:min(460px,100%)"><form onsubmit="submitExitForm(event)">
 <div class="modal-header"><h2>Exit form</h2><button type="button" class="modal-close" onclick="closeExitForm()">×</button></div>
 <div class="modal-body" style="display:grid;gap:14px">
@@ -2305,7 +2318,14 @@
 <label>Employee ID<input id="exitEmployeeId" type="text" readonly style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px;background:#f3f6f4"></label>
 <label>Email address<input id="exitEmail" type="email" readonly style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px;background:#f3f6f4"></label>
 <label>Exit date (becomes the card expiry date)<input id="exitDate" type="date" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"></label>
-<label>Purpose for exit<select id="exitPurpose" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px"><option value="">Select purpose</option><option>Retirement</option><option>Resignation</option><option>Termination / Dismissal</option></select></label>
+<label>Purpose for exit<select id="exitPurpose" required style="width:100%;padding:10px;border:1px solid #cbd8cf;border-radius:7px">
+  <option value="">Select purpose</option>
+  <option>Resignation</option>
+  <option>Retirement</option>
+  <option>Secondment/Leave Without Pay</option>
+  <option>Study leave</option>
+  <option>Termination / Dismissal</option>
+</select></label>
 </div><div class="modal-footer" style="gap:10px"><button type="button" class="btn btn-secondary" onclick="closeExitForm()">Cancel</button><button type="submit" class="btn btn-primary">Submit exit form</button></div></form></div></div>
 
 <div
@@ -2860,8 +2880,8 @@
     ],
 
     personnel:[
-      "Personnel",
-      "Master personnel list"
+      "All Staff",
+      "All Staff list"
     ],
 
     submissions:[
@@ -3477,6 +3497,7 @@
         <td class="actions-cell">
           ${PSP_USER.group === "HR" ? `
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <button class="btn btn-outline btn-small" onclick="openPersonnelEdit('${record.id}')">Edit details</button>
               ${isFullTimeRecord(record) && !record.exitDate ? `<button class="btn btn-secondary btn-small" onclick="openExitForm('${record.id}')">Exiting Staff</button>` : ""}
               ${isFullTimeRecord(record) && record.exitDate && record.returnRequired ? `<span class="muted">Exit: ${escapeHtml(record.exitPurpose || "flagged")} · ${formatDate(record.exitDate)}</span>` : ""}
               ${canHRConfirmID(record, status) ? `<button class="btn btn-primary btn-small" onclick="confirmSubmittedID('${record.id}')">Confirm ID received</button>` : ""}
@@ -3830,24 +3851,15 @@
       under ID Cards → Ready for Issuance.
     */
 
-    record.status =
-      "Pending";
-
-    record.capturedAt =
-      new Date().toISOString();
-
-    record.pendingAt =
-      new Date().toISOString();
-
+    record.status = "Captured";
+    record.capturedAt = new Date().toISOString();
     addHistory(
       "Personnel captured",
-      `${record.name} was captured and moved to Ready for Issuance.`
+      `${record.name} was captured and added to Captured, awaiting card production.`
     );
-
     saveBatches();
-
     showToast(
-      `${record.name} is now Ready for Issuance.`
+      `${record.name} has been captured. Click Ready on the ID Cards page when the card is ready.`
     );
 
     renderAll();
@@ -3864,13 +3876,18 @@
     const records =
       allRecords();
 
+    const captured =
+      records.filter(
+        record =>
+          getEffectiveStatus(record) ===
+          "Captured"
+      );
     const pending =
       records.filter(
         record =>
           getEffectiveStatus(record) ===
           "Pending"
       );
-
     const collected =
       records.filter(
         record =>
@@ -3891,6 +3908,7 @@
       );
 
 
+    document.getElementById("capturedSectionCount").textContent = captured.length;
     document.getElementById(
       "pendingSectionCount"
     ).textContent =
@@ -3912,10 +3930,10 @@
       expiring.length;
 
 
+    renderCapturedCards(captured);
     renderPendingCards(
       pending
     );
-
     renderIssuedCards(
       collected
     );
@@ -3932,9 +3950,80 @@
 
 
   /* =========================================================
+     CAPTURED -> READY (emails the person)
+  ========================================================= */
+  function renderCapturedCards(records) {
+    const search = document.getElementById("capturedSearch")?.value.trim().toLowerCase() || "";
+    if (search) records = records.filter(record => recordMatches(record, search));
+    const container = document.getElementById("capturedCardsTable");
+    if (!records.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">▤</div>
+          <strong>${search ? "No matching captured personnel" : "No captured personnel waiting for a card"}</strong>
+          <p>Personnel appear here after capture. Click Ready when their ID card is ready.</p>
+        </div>`;
+      return;
+    }
+    const canAct = PSP_USER.group !== "HR";
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th><th>Holder Status</th><th>Employee ID</th><th>Email Address</th>
+            <th>End Date</th><th>ID Status</th>${canAct ? "<th>Action</th>" : ""}
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map(record => `
+            <tr>
+              <td><div class="person-name">${escapeHtml(record.name)}</div></td>
+              <td>${escapeHtml(String(record.holderStatus || record.position || "—").replace(/^Full Staff$/i, "Full Time"))}</td>
+              <td>${record.employeeId ? escapeHtml(record.employeeId) : '<span class="muted">—</span>'}</td>
+              <td>${escapeHtml(record.email || "—")}</td>
+              <td>${formatDate(record.endDate)}</td>
+              <td>${statusBadge("Captured")}</td>
+              ${canAct ? `<td><button class="btn btn-primary btn-small" onclick="markCardReady('${record.id}')">Ready</button></td>` : ""}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>`;
+  }
+
+  async function markCardReady(recordId) {
+    if (PSP_USER.group === "HR") return;
+    const found = findRecord(recordId);
+    if (!found) return;
+    const record = found.record;
+    if (getEffectiveStatus(record) !== "Captured") {
+      showToast("This person is not in the Captured list.", "error");
+      return;
+    }
+    record.status = "Pending";
+    record.pendingAt = new Date().toISOString();
+    addHistory("ID card ready", `${record.name}'s ID card is ready for issuance.`);
+    saveBatches();
+    renderAll();
+    // The server emails the person once the change is saved.
+    try {
+      const response = await fetch(`/api/icms/records/${encodeURIComponent(recordId)}/notify-ready`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": PSP_CSRF, Accept: "application/json" }
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.emailSent) {
+        showToast(`${record.name} is Ready for Issuance and has been emailed.`);
+      } else {
+        showToast(`${record.name} is Ready for Issuance, but no email was sent. ${result.message || ""}`.trim(), "error");
+      }
+    } catch (err) {
+      showToast(`${record.name} is Ready for Issuance, but the email could not be sent.`, "error");
+    }
+  }
+
+  /* =========================================================
      PENDING COLLECTION
   ========================================================= */
-
   function renderPendingCards(
     records
   ) {
@@ -5764,6 +5853,9 @@
 
 
   document
+    .getElementById("capturedSearch")
+    .addEventListener("input", renderIdCards);
+  document
     .getElementById(
       "pendingSearch"
     )
@@ -5800,15 +5892,6 @@
       "click",
       () => {
 
-        const confirmed =
-          confirm(
-            "Log out of the Physical Security Portal?"
-          );
-
-        if (!confirmed) {
-          return;
-        }
-
         fetch('/logout',{method:'POST',headers:{'X-CSRF-Token':PSP_CSRF}}).then(()=>location.href='/login');
 
       }
@@ -5818,6 +5901,22 @@
   /* =========================================================
      RENDER EVERYTHING
   ========================================================= */
+
+  let personnelEditId=null;
+  function openPersonnelEdit(id){
+    if(PSP_USER.group!=='HR')return;const found=findRecord(id);if(!found)return;const r=found.record;personnelEditId=id;
+    const values={editStaffName:r.name,editStaffEmployeeId:r.employeeId,editStaffEmail:r.email,editStaffPhone:r.phone,editStaffDepartment:r.department,editStaffCourse:r.courseOfStudy,editStaffHolder:r.holderStatus||r.position};
+    Object.entries(values).forEach(([key,value])=>{const el=document.getElementById(key);if(el)el.value=value||'';});
+    document.getElementById('personnelEditModal').classList.remove('hidden');
+  }
+  function closePersonnelEdit(){document.getElementById('personnelEditModal').classList.add('hidden');personnelEditId=null;}
+  function submitPersonnelEdit(e){
+    e.preventDefault();if(PSP_USER.group!=='HR'||!personnelEditId)return;const found=findRecord(personnelEditId);if(!found)return;const r=found.record;
+    const get=id=>document.getElementById(id).value.trim();
+    Object.assign(r,{name:get('editStaffName'),employeeId:get('editStaffEmployeeId'),email:get('editStaffEmail'),phone:get('editStaffPhone'),department:get('editStaffDepartment'),courseOfStudy:get('editStaffCourse'),holderStatus:get('editStaffHolder')});
+    addHistory('Personnel details edited',`${r.name} personnel details were updated by HR.`);
+    try{saveBatches();closePersonnelEdit();showToast('Personnel details updated.','success');renderAll();}catch(err){showToast(err.message||'Could not save personnel details.','error');}
+  }
 
   let exitFormId=null;
   function openExitForm(id){
@@ -5890,6 +5989,7 @@
     const d=document.querySelector('#page-submissions .section-description');
     if(d)d.textContent='View personnel files imported by HR. Only the HR group can upload new files.';
   }
+  if(PSP_USER.group==='Admin'){const nav=document.querySelector('[data-page="submissions"]');if(nav)nav.remove();const page=document.getElementById('page-submissions');if(page)page.style.display='none';}
   renderAll();
 
 </script>

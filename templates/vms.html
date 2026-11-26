@@ -289,7 +289,8 @@ select.form-control {
 .recent-list-item .name { font-weight:500; font-size:.9rem; }
 .recent-list-item .sub { font-size:.78rem; color:var(--text-light); }
 
-.psp-return-button{display:block;margin:8px 12px 16px;padding:12px;border-radius:8px;background:#0a6634;color:#fff;text-decoration:none;font-size:14px;font-weight:600}.psp-return-button:focus-visible{outline:3px solid #d2a64b;outline-offset:3px}.sidebar-brand{flex-direction:column;align-items:flex-start}.sidebar-brand-mark{width:140px;max-width:100%}.sidebar-brand-mark img{height:auto;object-fit:contain}</style>
+.psp-return-button{display:block;margin:8px 12px 16px;padding:12px;border-radius:8px;background:#0a6634;color:#fff;text-decoration:none;font-size:14px;font-weight:600}.psp-return-button:focus-visible{outline:3px solid #d2a64b;outline-offset:3px}.sidebar-brand{flex-direction:column;align-items:flex-start}.sidebar-brand-mark{width:140px;max-width:100%}.sidebar-brand-mark img{height:auto;object-fit:contain}.sign-step{display:none}.sign-step.active{display:block}.step-indicator{flex:1;padding:9px 6px;border-bottom:3px solid #dbe4df;color:#64748b;text-align:center}.step-indicator.active{border-color:#174d36;color:#174d36;font-weight:700}
+</style>
 </head>
 <body>
 
@@ -328,15 +329,16 @@ select.form-control {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
         Dashboard
       </button>
+      <button class="nav-tab" data-tab="signin">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+        Sign In Visitor
+      </button>
 
       <button class="nav-tab admin-only" data-tab="approvals">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         Pending Approvals <span class="count-pill" id="pendingPill">0</span>
       </button>
-      <button class="nav-tab" data-tab="signin">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
-        Sign In Visitor
-      </button>
+      
       <button class="nav-tab approved-only hidden" data-tab="approved">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>
         Approved <span class="count-pill" id="approvedPill">0</span>
@@ -361,7 +363,7 @@ select.form-control {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
         Reports
       </button>
-      <button type="button" class="nav-tab" id="vmsLogoutBtn" onclick="if(confirm('Log out of the Physical Security Portal?'))pspLogout()">Log out</button>
+      <button type="button" class="nav-tab" id="vmsLogoutBtn" onclick="pspLogout()">Log out</button>
     </nav>
 
     <div class="sidebar-footer">
@@ -442,76 +444,34 @@ select.form-control {
             Sign-In Visitor
           </div>
         </div>
+        <div id="signInTypeCards" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px;">
+          <button type="button" class="btn btn-primary" id="singleVisitorMode">Single visitor</button>
+          <button type="button" class="btn btn-outline" id="groupVisitorMode">Multiple visitors</button>
+        </div>
         <form id="signInForm">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Number of guests <span class="req">*</span></label>
-              <input type="number" class="form-control" id="f_guestCount" min="1" max="100" value="1" required>
-              <div class="form-hint">Enter the total number of guests listed in the attached document.</div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Phone number <span class="req">*</span></label>
-              <input type="tel" class="form-control" id="f_phone" required autocomplete="off">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Guest names document</label>
-            <input type="file" class="form-control" id="f_guestDocument" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt">
-            <div id="guestDocumentFile" style="display:none;align-items:center;gap:10px;margin-top:8px;">
-              <span id="guestDocumentName" style="font-size:.875rem;word-break:break-all;"></span>
-              <button type="button" class="btn btn-danger-outline btn-sm" id="removeGuestDocument">Delete file</button>
-            </div>
-            <div class="form-hint">Optional. Names found in the document are filled into the guest name fields below automatically. Maximum upload size is 10 MB.</div>
-            <div id="guestDocumentPreview" class="form-hint" aria-live="polite"></div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Guest names <span class="req">*</span></label>
-            <div id="guestNameFields"></div>
-            <div class="form-hint">One field per guest. If the number of guests is more than the names in the document, enter the remaining names here.</div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Address / Organization <span class="req">*</span></label>
-            <input type="text" class="form-control" id="f_addressOrg" required autocomplete="off">
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Whom to see <span class="req">*</span></label>
-              <input type="text" class="form-control" id="f_toSee" required autocomplete="off">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Floor <span class="req">*</span></label>
-              <select class="form-control" id="f_floor" required>
-                <option value="">Select floor</option>
-                <option value="Wing A">Wing A</option>
-                <option value="B1">B1</option>
-                <option value="B2">B2</option>
-                <option value="GF">GF</option>
-                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                <option value="4">4</option><option value="5">5</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Department <span class="req">*</span></label>
-            <input type="text" class="form-control" id="f_department" required autocomplete="off">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Purpose of visit <span class="req">*</span></label>
-            <input type="text" class="form-control" id="f_purpose" required autocomplete="off" placeholder="e.g. Meeting, Delivery, Interview, Maintenance">
-          </div>
-
-          <div class="form-group" style="padding:12px;background:#f8fafc;border-radius:10px;">
-            <label><input type="checkbox" id="notifyEmail" checked> Allow email notifications of requests</label>
-          </div>
-          <button type="submit" class="btn btn-primary btn-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-            Submit request
-          </button>
+          <div id="resubmitBanner" style="display:none;margin-bottom:16px;padding:12px 14px;border:1px solid #fecaca;background:#fef2f2;border-radius:10px;font-size:.9rem;"></div>
+          <div id="stepProgress" style="display:flex;gap:8px;margin:0 0 18px;font-size:.85rem;"><span class="step-indicator active">1. Personal details</span><span class="step-indicator">2. Visit details</span><span class="step-indicator">3. Visit routing</span></div>
+          <section class="sign-step active" data-step="1">
+            <div class="form-group" id="representativeWrap" style="display:none"><label class="form-label">Name of group representative <span class="req">*</span></label><input type="text" class="form-control" id="f_representative" autocomplete="off"></div>
+            <div class="form-group" id="guestCountWrap" style="display:none"><label class="form-label">Number of guests <span class="req">*</span></label><input type="number" class="form-control" id="f_guestCount" min="1" max="100" value="1"><div class="form-hint">Enter the number of guests in the group (excluding the representative).</div></div>
+            <div class="form-group" id="guestNamesWrap"><label class="form-label" id="guestNamesLabel">Visitor name <span class="req">*</span></label><div id="guestNameFields"></div></div>
+            <div class="form-group"><label class="form-label">Phone number <span class="req">*</span></label><input type="tel" class="form-control" id="f_phone" required autocomplete="off"></div>
+            <div class="form-group" id="guestDocumentWrap" style="display:none"><label class="form-label">Guest list document</label><input type="file" class="form-control" id="f_guestDocument" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"><div id="guestDocumentFile" style="display:none;align-items:center;gap:10px;margin-top:8px;"><span id="guestDocumentName" style="font-size:.875rem;word-break:break-all;"></span><button type="button" class="btn btn-danger-outline btn-sm" id="removeGuestDocument">Delete file</button></div><div class="form-hint">Optional. Names found in the document are filled into the guest name fields automatically. Maximum upload size is 10 MB.</div><div id="guestDocumentPreview" class="form-hint" aria-live="polite"></div></div>
+            <div class="form-group" id="cameraCaptureWrap" style="display:none"><label class="form-label">Visitor photograph <span class="req">*</span></label><button type="button" class="btn btn-outline" id="openVisitorCamera">Open camera</button><div class="form-hint">Physical Security must take a photograph before continuing.</div><img id="visitorPhotoPreview" alt="Visitor photograph preview" style="display:none;max-width:180px;margin-top:10px;border-radius:8px"></div>
+          </section>
+          <section class="sign-step" data-step="2" style="display:none">
+            <div class="form-group"><label class="form-label">Address</label><input type="text" class="form-control" id="f_address" autocomplete="off"></div>
+            <div class="form-group"><label class="form-label">Organization</label><input type="text" class="form-control" id="f_organization" autocomplete="off"></div>
+            <div class="form-group"><label class="form-label">Whom to see</label><input type="text" class="form-control" id="f_toSee" autocomplete="off"></div>
+          </section>
+          <section class="sign-step" data-step="3" style="display:none">
+            <div class="form-group"><label class="form-label">Floor</label><select class="form-control" id="f_floor"><option value="">Select floor</option><option value="Wing A">Wing A</option><option value="B1">B1</option><option value="B2">B2</option><option value="GF">GF</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></div>
+            <div class="form-group"><label class="form-label">Department</label><select class="form-control" id="f_department"><option value="">Select department</option>{% for name, code in departments %}<option value="{{ name }}">{{ name }} ({{ code }})</option>{% endfor %}</select></div>
+            <div class="form-group"><label class="form-label">Purpose of Visit</label><input type="text" class="form-control" id="f_purpose" autocomplete="off" placeholder="e.g. Meeting, Delivery, Interview, Maintenance"></div>
+            {% if user.group == 'Physical Security' %}<div class="form-group" style="padding:12px;background:#f8fafc;border-radius:10px"><label><input type="checkbox" id="f_skipApproval"> Skip approval and check visitor in immediately</label></div>{% endif %}
+            <div class="form-group" style="padding:12px;background:#f8fafc;border-radius:10px;"><label><input type="checkbox" id="notifyEmail" checked> Allow email notifications of requests</label></div>
+          </section>
+          <div style="display:flex;justify-content:space-between;gap:10px;margin-top:18px"><button type="button" class="btn btn-outline" id="signStepBack" disabled>Back</button><button type="button" class="btn btn-primary" id="signStepNext">Next</button><button type="submit" class="btn btn-primary" id="signStepSubmit" style="display:none">Submit request</button></div>
         </form>
       </div>
     </section>
@@ -869,6 +829,8 @@ select.form-control {
 </div>
 
 <!-- SIGN OUT MODAL (Security) -->
+<div class="modal-overlay" id="visitorCameraModal"><div class="modal-box"><div class="modal-header"><h3 style="margin:0">Capture visitor photograph</h3><button class="modal-close" id="closeVisitorCamera">×</button></div><video id="visitorCameraVideo" autoplay playsinline style="width:100%;max-height:360px;background:#111;border-radius:8px"></video><canvas id="visitorCameraCanvas" style="display:none"></canvas><div id="visitorCameraError" class="form-hint" role="alert"></div><div class="modal-actions"><button type="button" class="btn btn-outline" id="cancelVisitorCamera">Cancel</button><button type="button" class="btn btn-primary" id="takeVisitorPhoto">Take photo</button></div></div></div>
+<div class="modal-overlay" id="routeVisitorModal"><div class="modal-box"><div class="modal-header"><h3 style="margin:0">Direct visitor</h3><button class="modal-close" onclick="closeRouteVisitor()">×</button></div><div id="routeVisitorName" style="margin-bottom:12px"></div><div class="form-group"><label class="form-label">Whom to see *</label><input class="form-control" id="routeToSee" required></div><div class="form-group"><label class="form-label">Floor *</label><select class="form-control" id="routeFloor"><option value="">Select floor</option><option>Wing A</option><option>B1</option><option>B2</option><option>GF</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div><div class="form-group"><label class="form-label">Department *</label><select class="form-control" id="routeDepartment"><option value="">Select department</option>{% for name, code in departments %}<option value="{{ name }}">{{ name }} ({{ code }})</option>{% endfor %}</select></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeRouteVisitor()">Cancel</button><button class="btn btn-primary" id="saveVisitorRoute">Save direction</button></div></div></div>
 <div class="modal-overlay" id="groupSignOutModal"><div class="modal-box"><div class="modal-header"><h3 style="margin:0">Select visitors to sign out</h3><button class="modal-close" onclick="closeGroupSignOut()">&times;</button></div><div id="groupSignOutNames" class="device-confirm-list"></div><div class="form-group"><label class="form-label">Comment (optional)</label><textarea class="form-control" id="groupSignOutComment" rows="2"></textarea></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeGroupSignOut()">Cancel</button><button class="btn btn-primary" id="confirmGroupSignOut">Sign out selected</button></div></div></div>
 <div class="modal-overlay" id="signOutModal">
   <div class="modal-box">
@@ -1291,13 +1253,58 @@ document.getElementById('navTabs').addEventListener('click',e=>{
   switchTab(btn.dataset.tab);
 });
 
+/* Edit and resubmit a rejected request (opened from the link in the rejection email). */
+let resubmitKey=null;
+function clearResubmit(){resubmitKey=null;const b=document.getElementById('resubmitBanner');b.style.display='none';b.innerHTML='';}
+function startResubmit(key, allowedStatus='rejected'){
+  if(!canSignVisitor())return;
+  const members=visitors.filter(v=>(v.groupId||v.id)===key&&v.status===allowedStatus);
+  if(!members.length){showAlert('This request is not available for editing. It may already have changed status.','danger');return;}
+  const v=members[0];
+  switchTab('signin');
+  resubmitKey=key;
+  setSignInMode((v.requestType==='group'||(!v.requestType&&members.length>1))?'group':'single');showSignStep(1);
+  resetGuestDocumentUi();
+  guestCountInput.value=members.length;renderGuestNameFields();
+  [...guestNameFields.children].forEach((input,i)=>{input.value=members[i].fullName||'';});
+  const set=(id,val)=>{document.getElementById(id).value=val||'';};
+  set('f_phone',v.phone);set('f_representative',v.representativeName);set('f_address',v.address||'');set('f_organization',v.organization||v.addressOrg||'');set('f_toSee',v.toSee);
+  set('f_floor',v.floor);set('f_department',v.department);set('f_purpose',v.purpose);
+  const b=document.getElementById('resubmitBanner');
+  b.innerHTML=allowedStatus==='rejected'?'<strong>This request was rejected.</strong><br>Comment: '+escapeHtml(v.rejectionReason||'No comment given')+'<br>Correct the details below and submit again.':'<strong>Edit this submitted request.</strong><br>Submitting will create a new request; the existing request will remain in the log.';
+  b.style.display='block';
+}
+
+function startEditRequest(key){startResubmit(key,'pending');}
+
+let capturedVisitorPhoto='';let visitorCameraStream=null;
+async function openVisitorCamera(){const error=document.getElementById('visitorCameraError');error.textContent='';document.getElementById('visitorCameraModal').classList.add('open');try{visitorCameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});document.getElementById('visitorCameraVideo').srcObject=visitorCameraStream;}catch(err){error.textContent='Camera access was not available. Allow camera permission and try again.';}}
+function closeVisitorCamera(){if(visitorCameraStream){visitorCameraStream.getTracks().forEach(t=>t.stop());visitorCameraStream=null;}document.getElementById('visitorCameraVideo').srcObject=null;document.getElementById('visitorCameraModal').classList.remove('open');}
+document.getElementById('openVisitorCamera').addEventListener('click',openVisitorCamera);
+document.getElementById('closeVisitorCamera').addEventListener('click',closeVisitorCamera);
+document.getElementById('cancelVisitorCamera').addEventListener('click',closeVisitorCamera);
+document.getElementById('takeVisitorPhoto').addEventListener('click',()=>{const video=document.getElementById('visitorCameraVideo');if(!video.videoWidth){document.getElementById('visitorCameraError').textContent='Wait for the camera preview, then take the photograph.';return;}const canvas=document.getElementById('visitorCameraCanvas');const scale=Math.min(1,960/video.videoWidth);canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);capturedVisitorPhoto=canvas.toDataURL('image/jpeg',0.78);const preview=document.getElementById('visitorPhotoPreview');preview.src=capturedVisitorPhoto;preview.style.display='block';closeVisitorCamera();showAlert('Visitor photograph captured.','success');});
+
+// Single/group selector and three-step visitor registration.
+let signInMode='single', signInStep=1;
+function setSignInMode(mode){signInMode=mode;const group=mode==='group';const namesWrap=document.getElementById('guestNamesWrap'),countWrap=document.getElementById('guestCountWrap'),docWrap=document.getElementById('guestDocumentWrap');const step1=document.querySelector('.sign-step[data-step="1"]'),step2=document.querySelector('.sign-step[data-step="2"]');if(group){step2.insertBefore(countWrap,step2.firstChild);step2.insertBefore(docWrap,countWrap.nextSibling);step2.insertBefore(namesWrap,document.getElementById('f_address').parentElement);}else{step1.insertBefore(namesWrap,document.getElementById('f_phone').parentElement);step1.appendChild(countWrap);step1.appendChild(docWrap);}document.getElementById('singleVisitorMode').className='btn '+(!group?'btn-primary':'btn-outline');document.getElementById('groupVisitorMode').className='btn '+(group?'btn-primary':'btn-outline');document.getElementById('representativeWrap').style.display=group?'block':'none';document.getElementById('guestCountWrap').style.display=group?'block':'none';document.getElementById('guestDocumentWrap').style.display=group?'block':'none';document.getElementById('cameraCaptureWrap').style.display=currentUser?.group==='Physical Security'?'block':'none';document.getElementById('guestNamesLabel').innerHTML=group?'Guest names <span class="req">*</span>':'Visitor name <span class="req">*</span>';guestCountInput.value=group?Math.max(2,Number(guestCountInput.value)||2):1;guestCountInput.required=group;renderGuestNameFields();}
+document.getElementById('singleVisitorMode').addEventListener('click',()=>setSignInMode('single'));
+document.getElementById('groupVisitorMode').addEventListener('click',()=>setSignInMode('group'));
+function showSignStep(step){signInStep=Math.max(1,Math.min(3,step));document.querySelectorAll('.sign-step').forEach(el=>{const active=Number(el.dataset.step)===signInStep;el.classList.toggle('active',active);el.style.display=active?'block':'none';});document.querySelectorAll('.step-indicator').forEach((el,i)=>el.classList.toggle('active',i+1===signInStep));document.getElementById('signStepBack').disabled=signInStep===1;document.getElementById('signStepNext').style.display=signInStep===3?'none':'inline-flex';document.getElementById('signStepSubmit').style.display=signInStep===3?'inline-flex':'none';}
+document.getElementById('signStepBack').addEventListener('click',()=>showSignStep(signInStep-1));
+document.getElementById('signStepNext').addEventListener('click',()=>{if(signInStep===1){if(!document.getElementById('f_phone').value.trim()||(currentUser.group==='Physical Security'&&!capturedVisitorPhoto)||(signInMode==='single'&&[...guestNameFields.children].some(x=>!x.value.trim()))||(signInMode==='group'&&!document.getElementById('f_representative').value.trim())){showAlert('Complete the required personal details before continuing.','danger');return;}}if(signInStep===2&&signInMode==='group'){if(guestNameFields.children.length!==guestCountValue()||[...guestNameFields.children].some(x=>!x.value.trim())){showAlert('Enter the name of each guest in the group.','danger');return;}}showSignStep(signInStep+1);});
+// Previously seen visitors appear as autocomplete suggestions; selecting a known name restores their saved details.
+function applyVisitorAutocomplete(input){const listId='visitorNameSuggestions';let list=document.getElementById(listId);if(!list){list=document.createElement('datalist');list.id=listId;document.body.appendChild(list);}input.setAttribute('list',listId);const refreshOptions=()=>{list.innerHTML=[...new Map(visitors.filter(v=>v.fullName).map(v=>[v.fullName,v])).values()].sort((a,b)=>a.fullName.localeCompare(b.fullName,undefined,{sensitivity:'base'})).map(v=>`<option value="${escapeHtml(v.fullName)}"></option>`).join('');};refreshOptions();input.addEventListener('focus',refreshOptions);input.addEventListener('change',()=>{const match=visitors.find(v=>(v.fullName||'').toLowerCase()===input.value.trim().toLowerCase());if(!match)return;document.getElementById('f_phone').value=match.phone||'';document.getElementById('f_address').value=match.address||'';document.getElementById('f_organization').value=match.organization||match.addressOrg||'';document.getElementById('f_toSee').value=match.toSee||'';document.getElementById('f_floor').value=match.floor||'';document.getElementById('f_department').value=match.department||'';document.getElementById('f_purpose').value=match.purpose||'';});}
+const guestNameObserver=new MutationObserver(()=>guestNameFields.querySelectorAll('input').forEach(input=>{if(!input.dataset.autocompleteReady){input.dataset.autocompleteReady='1';applyVisitorAutocomplete(input);}}));guestNameObserver.observe(guestNameFields,{childList:true});applyVisitorAutocomplete(document.getElementById('f_representative'));
+setSignInMode('single');showSignStep(1);
+
 /* Sign-in request: one visitor record per guest, sharing the rest of the form */
 document.getElementById('signInForm').addEventListener('submit',async e=>{
   e.preventDefault();
   if(!canSignVisitor())return;
   const submitBtn=e.target.querySelector('button[type="submit"]');submitBtn.disabled=true;
 
-  const guestCount=guestCountValue();
+  const guestCount=signInMode==='single'?1:guestCountValue();
   const guestNames=[...guestNameFields.children].map(i=>i.value.trim());
   if(guestNames.length!==guestCount||guestNames.some(n=>!n)){showAlert(`Enter a name for each of the ${guestCount} guest(s).`,'danger');submitBtn.disabled=false;return;}
 
@@ -1305,16 +1312,17 @@ document.getElementById('signInForm').addEventListener('submit',async e=>{
   let attachment=uploadedGuestAttachment;
   if(document.getElementById('f_guestDocument').files.length&&!attachment){showAlert('Wait for the uploaded document to finish reading, then submit again.','danger');submitBtn.disabled=false;return;}
   try{await apiRequest('/api/vms/notification-preferences',{method:'PUT',body:JSON.stringify({every_action:document.getElementById('notifyEmail').checked,status_changes:document.getElementById('notifyEmail').checked})});}catch(err){showAlert(err.message,'danger');submitBtn.disabled=false;return;}
+  let visitorPhotoData=capturedVisitorPhoto;if(currentUser.group==='Physical Security'&&!visitorPhotoData){showAlert('Capture the visitor photograph before submitting.','danger');submitBtn.disabled=false;return;}
   const shared={
     notifyEveryAction:document.getElementById('notifyEmail').checked,notifyStatusChange:document.getElementById('notifyEmail').checked,
-    requestEmail:currentUser.email,hostEmail:document.getElementById('f_toSee').value.trim(),
+    requestEmail:currentUser.email,hostEmail:document.getElementById('f_toSee').value.trim(),representativeName:document.getElementById('f_representative')?.value.trim()||'',visitorPhoto:visitorPhotoData,
     phone:document.getElementById('f_phone').value.trim(),
-    addressOrg:document.getElementById('f_addressOrg').value.trim(),
+    address:document.getElementById('f_address').value.trim(),organization:document.getElementById('f_organization').value.trim(),addressOrg:document.getElementById('f_organization').value.trim(),
     toSee:document.getElementById('f_toSee').value.trim(),
     purpose:document.getElementById('f_purpose').value.trim(),
     floor:document.getElementById('f_floor').value,
     department:document.getElementById('f_department').value.trim(),
-    guestCount,tagNo:'',timeIn:null,timeOut:null,status:'pending',
+    guestCount,requestType:signInMode,resubmitOf:resubmitKey||undefined,tagNo:'',timeIn:null,timeOut:null,status:'pending',skipApproval:!!document.getElementById('f_skipApproval')?.checked,
     deviceInfo:'',createdAt:new Date().toISOString(),groupId,guestAttachment:attachment
   };
 
@@ -1332,15 +1340,20 @@ document.getElementById('signInForm').addEventListener('submit',async e=>{
 
   if(successCount){
     showAlert(successCount===guestNames.length
-      ? (guestNames.length>1?`Visitor request submitted for ${successCount} guests (logged as one request) and saved for approval.`:'Visitor request submitted and saved for approval.')
+      ? (shared.skipApproval?'Visitor checked in immediately and added to the on-site list.':(guestNames.length>1?`Visitor request submitted for ${successCount} guests (logged as one request) and saved for approval.`:'Visitor request submitted and saved for approval.'))
       : `${successCount} of ${guestNames.length} guest requests were saved.`,'success');
     e.target.reset();
-    resetGuestDocumentUi();renderGuestNameFields();
+    setSignInMode('single');showSignStep(1);capturedVisitorPhoto='';const photoPreview=document.getElementById('visitorPhotoPreview');if(photoPreview){photoPreview.src='';photoPreview.style.display='none';}resetGuestDocumentUi();renderGuestNameFields();clearResubmit();
     refreshAllViews();
   }
   submitBtn.disabled=false;
 });
 
+/* Only the request owner can edit; Admin can also edit Physical Security-originated requests. */
+function canEditRequestGroup(g){
+  const v=visitors.find(x=>(x.groupId||x.id)===g); if(!v)return false;
+  return v.requestEmail===currentUser.email || (currentUser.group==='Admin' && v.requesterGroup==='Physical Security');
+}
 /* Pending approvals */
 function renderApprovals(){
   const groups=groupByRequest(visitors.filter(v=>v.status==='pending'))
@@ -1350,7 +1363,7 @@ function renderApprovals(){
     <td>${escapeHtml(g.names)}<br><small>${escapeHtml(v.phone)}</small></td>
     <td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td>
     <td>${escapeHtml(v.floor)}</td><td>${escapeHtml(v.department)}</td><td>${escapeHtml(v.requestEmail||'—')}</td>
-    <td><div class="btn-row"><button class="btn btn-outline btn-sm" onclick="showRequestDetails('${g.key}')">...</button><button class="btn btn-primary btn-sm" onclick="approveRequest('${g.key}')">Approve</button><button class="btn btn-danger-outline btn-sm" onclick="openRejectModal('${g.key}')">Reject</button></div></td>
+    <td><div class="btn-row"><button class="btn btn-outline btn-sm" onclick="showRequestDetails('${g.key}')">...</button>${canEditRequestGroup(g.key)?`<button class="btn btn-outline btn-sm" onclick="startEditRequest('${g.key}')">Edit & resubmit</button>`:''}<button class="btn btn-primary btn-sm" onclick="approveRequest('${g.key}')">Approve</button><button class="btn btn-danger-outline btn-sm" onclick="openRejectModal('${g.key}')">Reject</button></div></td>
   </tr>`;}).join('');
 }
 function showRequestDetails(key){const members=visitors.filter(v=>(v.groupId||v.id)===key);const v=members[0];if(!v)return;document.getElementById('requestDetailBody').innerHTML=`<strong>${escapeHtml(members.map(x=>x.fullName).join(', '))}</strong><br>Phone: ${escapeHtml(v.phone)}<br>Organization: ${escapeHtml(v.addressOrg)}<br>Host: ${escapeHtml(v.toSee)}<br>Purpose: ${escapeHtml(v.purpose)}<br>Floor: ${escapeHtml(v.floor)}<br>Department: ${escapeHtml(v.department)}<br>Submitted by: ${escapeHtml(v.requestEmail)}<br>Guest document: ${v.guestAttachment?`<a href="/api/visitors/attachment/${encodeURIComponent(v.guestAttachment.stored)}">${escapeHtml(v.guestAttachment.filename)}</a>`:'None attached'}`;document.getElementById('requestDetailModal').classList.add('open');}
@@ -1394,9 +1407,9 @@ document.getElementById('confirmReject').addEventListener('click',async()=>{
   if(!ids.length){closeRejectModal();return}
   const btn=document.getElementById('confirmReject');btn.disabled=true;
   try{
-    for(const id of ids){
-      await rejectVisitorRequest(id,reason);
-    }
+    // The server rejects every guest in the request and sends one email.
+    await rejectVisitorRequest(ids[0],reason);
+    await loadVisitors();
     showAlert(ids.length>1?`Request rejected for ${ids.length} guests and logged.`:'Request rejected and logged.','success');
     closeRejectModal();
     refreshAllViews();
@@ -1429,7 +1442,7 @@ function renderRejected(){
     <td>${escapeHtml(g.names)}<br><small>${escapeHtml(v.phone)}</small></td>
     <td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td>
     <td>${escapeHtml(v.floor)}</td><td>${escapeHtml(v.department)}</td><td>${escapeHtml(v.rejectedBy||'—')}</td>
-    <td>${fmtDateTime(v.rejectedAt)}</td><td class="rejection-reason">${escapeHtml(v.rejectionReason||'—')}</td>
+    <td>${fmtDateTime(v.rejectedAt)}</td><td class="rejection-reason">${escapeHtml(v.rejectionReason||'—')}<br>${canEditRequestGroup(g.key)?`<button class="btn btn-outline btn-sm" onclick="startResubmit('${g.key}')">Edit & resubmit</button>`:''}</td>
   </tr>`;}).join('');
 }
 
@@ -1460,7 +1473,7 @@ function renderStaffLog(){
   document.getElementById('staffLogTbody').innerHTML=rows.map(v=>`<tr>
     <td>${escapeHtml(v.fullName)}</td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td>
     <td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(v.department||'—')}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${escapeHtml(v.tagNo||'—')}</td>
-    <td>${fmtDateTime(v.timeIn)}</td><td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}</td>
+    <td>${fmtDateTime(v.timeIn)}</td><td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}${v.status==='pending'?`<br><button class="btn btn-outline btn-sm" onclick="startEditRequest('${v.groupId||v.id}')">Edit & resubmit</button>`:''}</td>
   </tr>`).join('');
 }
 
@@ -1578,15 +1591,20 @@ function renderOnSite(){
     const checkedDevices=g.members.map(x=>deviceSummary(x)).filter(x=>x && x!=='No devices');
     const devices=checkedDevices.length?[...new Set(checkedDevices)].join('; '):'No devices';
     return `<tr>
-      <td><strong>${escapeHtml(names)}</strong><div class="muted">${g.members.length} of group checked in</div></td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.phone)}</td><td>${escapeHtml(v.toSee)}</td>
+      <td><strong>${escapeHtml(names)}</strong>${g.members.length>1?`<div class="muted">${g.members.length} of group checked in</div>`:''}</td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.phone)}</td><td>${escapeHtml(v.toSee)}</td>
       <td>${escapeHtml(v.purpose)}</td><td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(devices)}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${tags?'<strong>'+escapeHtml(tags)+'</strong>':'<span class="muted">Not assigned</span>'}</td>
       <td>${fmtTime(v.timeIn)}${g.members.length>1?`<div class="muted">${g.members.length} check-in times</div>`:''}</td><td>${statusBadge('checked_in')}</td>
-      <td>${canCheckOut()?`<button class="btn btn-outline btn-sm" onclick="openGroupSignOut('${g.key}')">Sign out</button>`:''}</td>
+      <td>${can('Reception')?`<button class="btn btn-outline btn-sm" onclick="openRouteVisitor('${g.members[0].id}')">Direct visitor</button>`:''} ${canCheckOut()?`<button class="btn btn-outline btn-sm" onclick="openGroupSignOut('${g.key}')">Sign out</button>`:''}</td>
     </tr>`;
   }).join('');
 }
 document.getElementById('onsiteSearch').addEventListener('input',renderOnSite);
 
+
+let routeVisitorId=null;
+function openRouteVisitor(id){if(!can('Reception'))return;const v=visitors.find(x=>x.id===id);if(!v)return;routeVisitorId=id;document.getElementById('routeVisitorName').textContent=v.fullName||'Visitor';document.getElementById('routeToSee').value=v.toSee||'';document.getElementById('routeFloor').value=v.floor||'';document.getElementById('routeDepartment').value=v.department||'';document.getElementById('routeVisitorModal').classList.add('open');}
+function closeRouteVisitor(){document.getElementById('routeVisitorModal').classList.remove('open');routeVisitorId=null;}
+document.getElementById('saveVisitorRoute').addEventListener('click',async()=>{if(!routeVisitorId)return;const payload={toSee:document.getElementById('routeToSee').value.trim(),floor:document.getElementById('routeFloor').value,department:document.getElementById('routeDepartment').value};if(!payload.toSee||!payload.floor||!payload.department){showAlert('Reception must complete whom to see, floor and department.','danger');return;}try{const data=await apiRequest('/api/visitors/'+encodeURIComponent(routeVisitorId)+'/route',{method:'PATCH',body:JSON.stringify(payload)});const saved=data.visitor||data;const idx=visitors.findIndex(v=>v.id===saved.id);if(idx>=0)visitors[idx]=saved;closeRouteVisitor();showAlert('Visitor direction saved.','success');refreshAllViews();}catch(err){showAlert(err.message||'Could not save visitor direction.','danger');}});
 
 /* Sign out (Security) */
 function openSignOutModal(id){
@@ -1684,7 +1702,7 @@ function renderLog(){
   document.getElementById('logTbody').innerHTML=rows.map(v=>`<tr>
     <td>${escapeHtml(v.fullName)}</td><td>${escapeHtml(v.addressOrg)}</td><td>${escapeHtml(v.toSee)}</td><td>${escapeHtml(v.purpose)}</td><td>${escapeHtml(v.approvalCode||'—')}</td>
     <td>${escapeHtml(v.tagNo||'—')}</td><td>${escapeHtml(v.floor||'—')}</td><td>${escapeHtml(v.department||'—')}</td><td>${fmtDateTime(v.timeIn)}</td>
-    <td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}</td>
+    <td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}${v.status==='pending'&&(v.requestEmail===currentUser.email||(currentUser.group==='Admin'&&v.requesterGroup==='Physical Security'))?`<br><button class="btn btn-outline btn-sm" onclick="startEditRequest('${v.groupId||v.id}')">Edit & resubmit</button>`:''}</td>
   </tr>`).join('');
 }
 document.getElementById('logSearch').addEventListener('input',renderLog);
@@ -1764,7 +1782,7 @@ function generateReport(){
   document.getElementById('reportTbody').innerHTML=reportRows.map(v=>`<tr>
     <td>${escapeHtml(v.fullName)}</td><td>${escapeHtml(v.approvalCode||'—')}</td><td>${escapeHtml(v.tagNo||'—')}</td><td>${escapeHtml(v.floor||'—')}</td>
     <td>${escapeHtml(deviceSummary(v))}</td><td>${escapeHtml(v.checkedInBy||'—')}</td><td>${escapeHtml(v.checkedOutBy||'—')}</td>
-    <td>${fmtDateTime(v.timeIn)}</td><td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}</td>
+    <td>${fmtDateTime(v.timeIn)}</td><td>${fmtDateTime(v.timeOut)}</td><td>${statusBadge(v.status)}${v.status==='pending'?`<br><button class="btn btn-outline btn-sm" onclick="startEditRequest('${v.groupId||v.id}')">Edit & resubmit</button>`:''}</td>
   </tr>`).join('');
 }
 document.getElementById('generateReportBtn').addEventListener('click',generateReport);
@@ -1838,6 +1856,6 @@ function updateNavCounts(){
 })();
 </script>
 
-<script>(async()=>{document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';await loadVisitors();updateNavCounts();configureRole();const p=new URLSearchParams(location.search);if(p.get('section'))switchTab(p.get('section'));if(currentUser.group==='Staff'&&p.get('status')){document.getElementById('staffLogFilter').value=p.get('status');renderStaffLog();}})();</script>{% include '_table_search.html' %}
+<script>(async()=>{document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';await loadVisitors();updateNavCounts();configureRole();const p=new URLSearchParams(location.search);if(p.get('section'))switchTab(p.get('section'));if(p.get('resubmit'))startResubmit(p.get('resubmit'));if(currentUser.group==='Staff'&&p.get('status')){document.getElementById('staffLogFilter').value=p.get('status');renderStaffLog();}})();</script>{% include '_table_search.html' %}
 </body>
 </html>
